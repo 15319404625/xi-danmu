@@ -318,7 +318,7 @@ function renderDetail(w){
       <button class="act-btn" onclick="openChatWith('${esc(w.author)}')">💬 私信</button>
       ${me?`<button class="act-btn" onclick="reportWork()">🚩 举报</button>`:''}
     </div></div>
-    ${w.type==='video'?`<div class="danmu-bar"><input id="dmInput" placeholder="发个友善的弹幕" onkeydown="if(event.key==='Enter')sendDanmu()"><div class="colors" id="colorRow"></div></div>`:''}
+    ${w.type==='video'?`<div class="danmu-bar"><input id="dmInput" placeholder="发个友善的弹幕" onkeydown="if(event.key==='Enter')sendDanmu()"><div class="colors" id="colorRow"></div>${me&&me.isAdmin?'<button class="btn btn-ghost" onclick="clearAllDanmu()">清空弹幕</button>':''}</div>`:''}
     <div class="comments"><h3>评论 <span id="cmtCount">${DB.comments.filter(c=>c.workId===w.id).length}</span></h3>
       <div class="cmt-input"><input id="cmtInput" placeholder="发一条友善的评论" onkeydown="if(event.key==='Enter')sendComment(null)"><button class="btn btn-pink" onclick="sendComment(null)">评论</button></div><div id="cmtList"></div></div>
     <div style="margin-top:20px"><h3>相关推荐</h3><div class="grid" style="padding:10px 0">${DB.works.filter(x=>x.id!==w.id&&x.category===w.category).slice(0,6).map(workCard).join('')||'<div class="empty">暂无相关</div>'}</div></div></div>`;
@@ -358,16 +358,25 @@ async function toggleFollow(name){
 function notify(to,text,workId,fromUser){if(!to||to===me?.name)return;DB.notifs.push({id:nextId(),to,text,workId:workId||null,from:fromUser||(me?me.name:'系统'),read:false,time:Date.now()});}
 
 async function loadDanmu(wid){const layer=document.getElementById('danmuLayer');if(!layer)return;layer.innerHTML='';
-  // re-fetch danmaku from server to get others' danmaku
   try{const fresh=await ghRead(DATA_FILES.danmu);if(fresh)DB.danmu=fresh;}catch(e){}
-  DB.danmu.filter(d=>d.workId===wid).forEach(spawnDanmu);
-  // poll for new danmaku every 5s
+  // schedule danmaku by video time
+  window._shownDm=new Set();
+  if(window._dmLoop)cancelAnimationFrame(window._dmLoop);
+  const v=document.querySelector('video');
+  (function loop(){
+    if(!curWork||curWork.id!==wid)return;
+    const v=document.querySelector('video');
+    const ct=v?v.currentTime:0;
+    DB.danmu.filter(d=>d.workId===wid&&!window._shownDm.has(d.id)&&(d.t||0)<=ct).forEach(d=>{
+      window._shownDm.add(d.id);spawnDanmu(d);
+    });
+    window._dmLoop=requestAnimationFrame(loop);
+  })();
+  // poll for new danmaku
   if(window._dmTimer)clearInterval(window._dmTimer);
   window._dmTimer=setInterval(async()=>{
     if(curWork&&curWork.id!==wid){clearInterval(window._dmTimer);return;}
-    try{const fresh=await ghRead(DATA_FILES.danmu);if(fresh){const old=DB.danmu;DB.danmu=fresh;
-      fresh.filter(d=>d.workId===wid&&!old.find(o=>o.id===d.id)).forEach(spawnDanmu);
-    }}catch(e){}
+    try{const fresh=await ghRead(DATA_FILES.danmu);if(fresh)DB.danmu=fresh;}catch(e){}
   },5000);
 }
 function spawnDanmu(d){
@@ -387,11 +396,18 @@ async function sendDanmu(){
     if(!me)return openLogin(false);
     if(selColor==='rainbow'&&(!me||me.level<3))return toast('渐变需要LV3');
     lastAction=now;
-    DB.danmu.push({id:nextId(),workId:curWork.id,user:me.name,avatar:me.avatar||'',text,color:selColor,time:Date.now()});
+    const v=document.querySelector('video');const vt=v?v.currentTime:0;
+    DB.danmu.push({id:nextId(),workId:curWork.id,user:me.name,avatar:me.avatar||'',text,color:selColor,t:vt,time:Date.now()});
     await ghWrite('data/danmaku.json',DB.danmu,'弹幕');
     addExp(me.name,2);await ghWrite('data/users.json',DB.users,'经验');
-    inp.value='';loadDanmu(curWork.id);toast('弹幕已发送');
+    inp.value='';toast('弹幕已发送');
   }catch(e){toast('发送失败: '+e.message);}
+}
+async function clearAllDanmu(){
+  if(!confirm('确定删除所有弹幕？'))return;
+  DB.danmu=DB.danmu.filter(d=>d.workId!==curWork.id);
+  await ghWrite('data/danmaku.json',DB.danmu,'清空弹幕');
+  document.getElementById('danmuLayer').innerHTML='';toast('已清空');
 }
 
 function loadComments(wid){
