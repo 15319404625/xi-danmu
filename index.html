@@ -535,7 +535,8 @@ async function sendChatImage(inp){
 }
 
 function openProfile(){if(!me)return openLogin(false);go('profile');
-  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div><div><h2>${esc(me.name)}</h2><div style="color:#61666d">LV${me.level}/1000 · 经验${me.exp}</div></div><div style="margin-left:auto"><label class="btn btn-ghost" style="cursor:pointer">头像<input type="file" hidden accept="image/*" onchange="upAvatar(this)"></label></div></div><h3>我的作品</h3><div class="grid">${DB.works.filter(w=>w.author===me.name).map(workCard).join('')||'<div class="empty">还没发布</div>'}</div>`;
+  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div><div><h2>${esc(me.name)}</h2><div style="color:#61666d">LV${me.level}/1000 · 经验${me.exp}</div></div><div style="margin-left:auto"><label class="btn btn-ghost" style="cursor:pointer">头像<input type="file" hidden accept="image/*" onchange="upAvatar(this)"></label></div></div><h3>我的作品</h3><div class="grid">${DB.works.filter(w=>w.author===me.name).map(workCard).join('')||'<div class="empty">还没发布</div>'}</div>
+<h3 style="margin-top:20px">我的收藏</h3><div class="grid">${DB.works.filter(w=>(w.favs||[]).includes(me.name)).map(workCard).join('')||'<div class="empty">还没收藏</div>'}</div>`;
 }
 async function upAvatar(inp){
   const f=inp.files[0];if(!f)return;toast('上传中...');
