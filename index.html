@@ -237,20 +237,20 @@ function openUpload(){
 function pickType(t){window._utype=t;document.getElementById('tp-video').classList.toggle('sel',t==='video');document.getElementById('tp-post').classList.toggle('sel',t==='post');document.getElementById('videoFields').style.display=t==='video'?'block':'none';document.getElementById('postFields').style.display=t==='post'?'block':'none';}
 function readFileAsDataURL(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);});}
 async function doUpload(){
-  const title=document.getElementById('upTitle').value.trim();if(!title)return toast('标题必填');
-  toast('上传中(大文件较慢)...');
-  let video='',cover='',images=[];
   try{
+    const title=document.getElementById('upTitle').value.trim();if(!title)return toast('标题必填');
+    toast('上传中(大文件较慢)...');
+    let video='',cover='',images=[];
     if(window._utype==='video'){
       const vf=document.getElementById('upVideo').files[0];
       if(vf)video=await ghUploadFile(Date.now()+'_'+vf.name,await readFileAsDataURL(vf));else video=document.getElementById('upVideoUrl').value.trim();
       const cf=document.getElementById('upCover').files[0];if(cf)cover=await ghUploadFile(Date.now()+'_c.jpg',await readFileAsDataURL(cf));
     } else {for(const f of document.getElementById('upImages').files)images.push(await ghUploadFile(Date.now()+'_'+f.name,await readFileAsDataURL(f)));}
-  }catch(e){return toast('上传失败: '+e.message);}
-  DB.works.unshift({id:nextId(),type:window._utype,title,content:document.getElementById('upContent').value,category:document.getElementById('upCat').value,video,cover,images,author:me.name,authorId:me.id,playCount:0,likes:[],coins:[],favs:[],createdAt:Date.now()});
-  await ghWrite('data/works.json',DB.works,'发布 '+title);
-  addExp(me.name,window._utype==='video'?50:10);await ghWrite('data/users.json',DB.users,'经验');
-  closeModal();toast('发布成功');loadHome();go('home');
+    DB.works.unshift({id:nextId(),type:window._utype,title,content:document.getElementById('upContent').value,category:document.getElementById('upCat').value,video,cover,images,author:me.name,authorId:me.id,playCount:0,likes:[],coins:[],favs:[],createdAt:Date.now()});
+    await ghWrite('data/works.json',DB.works,'发布 '+title);
+    addExp(me.name,window._utype==='video'?50:10);await ghWrite('data/users.json',DB.users,'经验');
+    closeModal();toast('发布成功！');loadHome();go('home');
+  }catch(e){toast('发布失败: '+e.message);}
 }
 
 async function openWork(id){
@@ -397,10 +397,19 @@ function openHistory(){if(!me)return openLogin(false);go('profile');
 
 async function openAdmin(){
   if(!me||!me.isAdmin)return toast('仅管理员');go('admin');
-  document.getElementById('page-admin').innerHTML=`<h2 style="margin:10px 0">管理后台</h2><h3>用户</h3><table><tr><th>用户</th><th>等级</th><th>操作</th></tr>${DB.users.map(u=>`<tr><td>${esc(u.name)}${u.isAdmin?' 👑':''}</td><td>LV${u.level}</td><td><button class="mini" onclick="setLv(${u.id},${u.level+1})">升</button> <button class="mini" onclick="setLv(${u.id},${u.level-1})">降</button></td></tr>`).join('')}</table><h3 style="margin-top:16px">弹幕</h3><table><tr><th>用户</th><th>内容</th><th>操作</th></tr>${DB.danmu.map(d=>`<tr><td>${esc(d.user)}</td><td>${esc(d.text)}</td><td><button class="mini danger" onclick="delDm(${d.id})">删</button></td></tr>`).join('')}</table>`;
+  renderAdmin('');
 }
-async function setLv(id,lv){const u=DB.users.find(x=>x.id===id);u.level=Math.max(0,Math.min(1000,lv));await ghWrite('data/users.json',DB.users,'调等级');openAdmin();}
-async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('data/danmaku.json',DB.danmu,'删弹幕');openAdmin();}
+function renderAdmin(kw){
+  kw=(kw||'').toLowerCase();
+  const users=DB.users.filter(u=>!kw||u.name.toLowerCase().includes(kw));
+  document.getElementById('page-admin').innerHTML=`<h2 style="margin:10px 0">管理后台</h2>
+    <h3>用户</h3>
+    <input id="adminSearch" placeholder="搜索用户名..." value="${esc(kw)}" oninput="renderAdmin(this.value)" style="width:100%;padding:8px 12px;border:1px solid #e3e5e7;border-radius:8px;margin-bottom:10px">
+    <table><tr><th>用户</th><th>等级</th><th>经验</th><th>操作</th></tr>${users.map(u=>`<tr><td>${esc(u.name)}${u.isAdmin?' 👑':''}</td><td>LV${u.level}</td><td>${u.exp||0}</td><td><button class="mini" onclick="setLv(${u.id},${u.level+1})">升一级</button> <button class="mini" onclick="setLv(${u.id},${u.level-1})">降一级</button> <button class="mini" onclick="setLv(${u.id},${parseInt(prompt('设置等级(0-1000):',u.level))||0})">设等级</button></td></tr>`).join('')}</table>
+    <h3 style="margin-top:16px">弹幕</h3><table><tr><th>用户</th><th>内容</th><th>操作</th></tr>${DB.danmu.map(d=>`<tr><td>${esc(d.user)}</td><td>${esc(d.text)}</td><td><button class="mini danger" onclick="delDm(${d.id})">删</button></td></tr>`).join('')}</table>`;
+}
+async function setLv(id,lv){const u=DB.users.find(x=>x.id===id);u.level=Math.max(0,Math.min(1000,lv));await ghWrite('data/users.json',DB.users,'调等级');renderAdmin(document.getElementById('adminSearch')?.value||'');toast('已调整为LV'+u.level);}
+async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('data/danmaku.json',DB.danmu,'删弹幕');renderAdmin(document.getElementById('adminSearch')?.value||'');}
 
 function openModal(h){document.getElementById('modalBox').innerHTML=h;document.getElementById('mask').classList.add('show');}
 function closeModal(){document.getElementById('mask').classList.remove('show');}
