@@ -149,7 +149,7 @@ function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));document.getElementById('page-'+p).classList.add('show');window.scrollTo(0,0);}
 
 async function ghRead(path){
-  try{const r=await fetch(`https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/${path}?t=${cacheBust++}`);if(!r.ok)return null;return JSON.parse(await r.text());}catch(e){return null;}
+  try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}?t=${cacheBust++}`,{headers:{Authorization:'token '+TOKEN}});if(!r.ok)return null;const j=await r.json();return JSON.parse(decodeURIComponent(escape(atob(j.content))));}catch(e){return null;}
 }
 async function ghWrite(path,obj,msg){
   let sha=null;
