@@ -357,7 +357,19 @@ async function toggleFollow(name){
 }
 function notify(to,text,workId,fromUser){if(!to||to===me?.name)return;DB.notifs.push({id:nextId(),to,text,workId:workId||null,from:fromUser||(me?me.name:'系统'),read:false,time:Date.now()});}
 
-function loadDanmu(wid){const layer=document.getElementById('danmuLayer');if(!layer)return;layer.innerHTML='';DB.danmu.filter(d=>d.workId===wid).forEach(spawnDanmu);}
+async function loadDanmu(wid){const layer=document.getElementById('danmuLayer');if(!layer)return;layer.innerHTML='';
+  // re-fetch danmaku from server to get others' danmaku
+  try{const fresh=await ghRead(DATA_FILES.danmu);if(fresh)DB.danmu=fresh;}catch(e){}
+  DB.danmu.filter(d=>d.workId===wid).forEach(spawnDanmu);
+  // poll for new danmaku every 5s
+  if(window._dmTimer)clearInterval(window._dmTimer);
+  window._dmTimer=setInterval(async()=>{
+    if(curWork&&curWork.id!==wid){clearInterval(window._dmTimer);return;}
+    try{const fresh=await ghRead(DATA_FILES.danmu);if(fresh){const old=DB.danmu;DB.danmu=fresh;
+      fresh.filter(d=>d.workId===wid&&!old.find(o=>o.id===d.id)).forEach(spawnDanmu);
+    }}catch(e){}
+  },5000);
+}
 function spawnDanmu(d){
   const layer=document.getElementById('danmuLayer');if(!layer)return;
   const el=document.createElement('div');el.className='danmu-item'+(d.color==='rainbow'?' rainbow-text':'');
