@@ -191,7 +191,7 @@ async function ghUploadFile(filename,dataUri){
   const cr=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/commits`,{method:'POST',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({message:'upload '+filename,tree:newTreeSha,parents:[treeSha]})});
   const commitSha=(await cr.json()).sha;
   await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/refs/heads/${GH_BRANCH}`,{method:'PATCH',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({sha:commitSha})});
-  return `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/uploads/${filename}`;
+  return `https://cdn.jsdelivr.net/gh/${GH_USER}/${GH_REPO}@${GH_BRANCH}/uploads/${filename}`;
 }
 async function encStr(s){try{return btoa(unescape(encodeURIComponent(s))).split('').reverse().map((c,i)=>String.fromCharCode(c.charCodeAt(0)+(i%7))).join('');}catch(e){return s;}}
 function decStr(s){try{let r=s.split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)-(i%7))).join('');return decodeURIComponent(escape(atob(r.split('').reverse().join(''))));}catch(e){return s;}}
