@@ -449,7 +449,17 @@ document.getElementById('mask').onclick=e=>{if(e.target.id==='mask')closeModal()
 document.addEventListener('contextmenu',e=>{if(e.target.closest('video'))e.preventDefault();});
 document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.preventDefault();});
 
-(async()=>{await loadDB();const n=localStorage.getItem('xi_user');me=n?DB.users.find(u=>u.name===n):null;renderNav();loadHome();})();
+(async()=>{
+  await loadDB();
+  let n=localStorage.getItem('xi_user');
+  if(n&&!DB.users.find(u=>u.name===n)){
+    // user not found in cache, refetch users once
+    await ghRead(DATA_FILES.users).then(u=>{if(u){DB.users=u;}});
+  }
+  me=n?DB.users.find(u=>u.name===n)||null:null;
+  if(n&&!me)localStorage.removeItem('xi_user');
+  renderNav();loadHome();
+})();
 </script>
 </body>
 </html>
