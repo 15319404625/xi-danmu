@@ -292,7 +292,7 @@ function renderDetail(w){
     <div style="margin-top:20px"><h3>相关推荐</h3><div class="grid" style="padding:10px 0">${DB.works.filter(x=>x.id!==w.id&&x.category===w.category).slice(0,6).map(workCard).join('')||'<div class="empty">暂无相关</div>'}</div></div></div>`;
   renderColors();
 }
-function renderColors(){document.getElementById('colorRow').innerHTML='<span style="font-size:13px">颜色:</span>'+COLORS.map(([v,hex])=>{const locked=v==='rainbow'&&(!me||me.level<3);return `<div class="swatch ${v===selColor?'sel':''} ${locked?'locked':''}" title="${v}" style="background:${hex==='rainbow'?'linear-gradient(90deg,red,yellow,green,cyan,blue,purple)':hex}" onclick="pickColor('${v}',${locked})"></div>`;}).join('');}
+function renderColors(){const cr=document.getElementById('colorRow');if(!cr)return;cr.innerHTML='<span style="font-size:13px">颜色:</span>'+COLORS.map(([v,hex])=>{const locked=v==='rainbow'&&(!me||me.level<3);return `<div class="swatch ${v===selColor?'sel':''} ${locked?'locked':''}" title="${v}" style="background:${hex==='rainbow'?'linear-gradient(90deg,red,yellow,green,cyan,blue,purple)':hex}" onclick="pickColor('${v}',${locked})"></div>`;}).join('');}
 function pickColor(v,locked){if(locked)return toast('渐变需要LV3');selColor=v;renderColors();}
 async function act(a){
   if(!me)return openLogin(false);const w=curWork;
