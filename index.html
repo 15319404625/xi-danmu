@@ -236,10 +236,11 @@ function workCard(w){
   return `<div class="card" onclick="openWork(${w.id})"><div class="thumb">${thumb}<div class="stats"><span>▶ ${w.playCount||0}</span><span>💬 ${dmN}</span></div></div><div class="body"><div class="title"><span class="tag-type">${w.type==='video'?'视频':'图文'}</span>${esc(w.title)}</div><div class="meta">${esc(w.author)} · ${(w.likes||[]).length}赞 · ${cmN}评</div></div></div>`;
 }
 async function loadHome(){loadCats();let list=[...DB.works].sort((a,b)=>b.createdAt-a.createdAt);if(activeCat!=='all')list=list.filter(w=>w.category===activeCat);document.getElementById('homeGrid').innerHTML=list.length?list.map(workCard).join(''):'<div class="empty">暂无内容</div>';}
-function doSearch(){
-  const q=document.getElementById('searchInput').value.trim().toLowerCase();
+function doSearch(q){
+  q=(q||document.getElementById('searchInput').value).trim().toLowerCase();
   if(!q)return loadHome();
   go('home');
+  history.replaceState(null,'','#/search/'+encodeURIComponent(q));
   const list=DB.works.filter(w=>w.title.toLowerCase().includes(q)||w.author.toLowerCase().includes(q)||(w.content||'').toLowerCase().includes(q));
   document.getElementById('homeGrid').innerHTML=list.length?list.map(workCard).join(''):'<div class="empty">没有找到相关内容</div>';
 }
@@ -485,7 +486,7 @@ function openChat(withWho){curChatWith=withWho;renderMessages();
   DB.messages.forEach(m=>{if(m.from===withWho&&m.to===me.name)m.read=true;});
   ghWrite('data/messages.json',DB.messages,'已读').catch(()=>{});
   const msgs=DB.messages.filter(m=>(m.from===me.name&&m.to===withWho)||(m.from===withWho&&m.to===me.name)).sort((a,b)=>a.time-b.time);
-  document.getElementById('chatWin').innerHTML=`<div style="padding:12px 16px;border-bottom:1px solid #f1f2f3;font-weight:700">${esc(withWho)}</div><div class="chat-msgs" id="chatMsgs">${msgs.map(m=>`<div class="chat-msg ${m.from===me.name?'me':''}"><div class="avatar" style="width:30px;height:30px">${esc(m.from[0])}</div><div><div class="chat-bubble">${m.image?`<img src="${m.image}">`:esc(m.text)}</div>${m.from===me.name?`<div style="font-size:11px;color:#61666d;text-align:right;margin-top:2px">${m.read?'已读':'未读'}</div>`:''}</div></div>`).join('')}</div><div class="chat-input"><input id="chatInput" placeholder="输入..." onkeydown="if(event.key==='Enter')sendChat()"><button class="btn btn-ghost" onclick="document.getElementById('chatFile').click()">图</button><input type="file" id="chatFile" accept="image/*" hidden onchange="sendChatImage(this)"><button class="btn btn-pink" onclick="sendChat()">发送</button></div>`;
+  document.getElementById('chatWin').innerHTML=`<div style="padding:12px 16px;border-bottom:1px solid #f1f2f3;font-weight:700">${esc(withWho)}</div><div class="chat-msgs" id="chatMsgs">${msgs.map(m=>`<div class="chat-msg ${m.from===me.name?'me':''}"><div class="avatar" style="width:30px;height:30px">${esc(m.from[0])}</div><div><div class="chat-bubble">${m.image?`<img src="${m.image}" style="cursor:zoom-in" onclick="window.open(this.src)" download>`:esc(m.text)}</div>${m.from===me.name?`<div style="font-size:11px;color:#61666d;text-align:right;margin-top:2px">${m.read?'已读':'未读'}</div>`:''}</div></div>`).join('')}</div><div class="chat-input"><input id="chatInput" placeholder="输入..." onkeydown="if(event.key==='Enter')sendChat()"><button class="btn btn-ghost" onclick="document.getElementById('chatFile').click()">图</button><input type="file" id="chatFile" accept="image/*" hidden onchange="sendChatImage(this)"><button class="btn btn-pink" onclick="sendChat()">发送</button></div>`;
   document.getElementById('chatMsgs').scrollTop=99999;
 }
 function openChatWith(name){openMessages();msgTab='chat';openChat(name);}
@@ -562,9 +563,13 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
   const mw=h.match(/#\/work\/(\d+)/);
   if(mw){const id=parseInt(mw[1]);const w=DB.works.find(x=>x.id===id);if(w)openWork(id,true);}
   else{
-    const page=h.replace('#/','')||'home';
-    const valid=['home','messages','profile','admin','history','upload'];
-    if(valid.includes(page))go(page);
+    const ms=h.match(/#\/search\/(.+)/);
+    if(ms){const q=decodeURIComponent(ms[1]);document.getElementById('searchInput').value=q;doSearch(q);}
+    else{
+      const page=h.replace('#/','')||'home';
+      const valid=['home','messages','profile','admin','history','upload'];
+      if(valid.includes(page))go(page);
+    }
   }
   // auto-refresh data every 5s without reloading page
   setInterval(async()=>{
