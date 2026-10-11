@@ -152,12 +152,16 @@ function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove(
 async function ghRead(path){
   try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}?t=${cacheBust++}`,{headers:{Authorization:'token '+TOKEN}});if(!r.ok)return null;const j=await r.json();return JSON.parse(decodeURIComponent(escape(atob(j.content))));}catch(e){return null;}
 }
-async function ghWrite(path,obj,msg){
+async function ghWrite(path,obj,msg,retry){
+  retry=retry||0;
   let sha=null;
   try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}`,{headers:{Authorization:'token '+TOKEN}});if(r.ok)sha=(await r.json()).sha;}catch(e){}
   const body=JSON.stringify(obj);
   const res=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({message:msg,content:btoa(unescape(encodeURIComponent(body))),branch:GH_BRANCH,...(sha?{sha}:{})})});
-  if(!res.ok)throw new Error('保存失败 '+res.status);
+  if(!res.ok){
+    if(res.status===409&&retry<3){await new Promise(r=>setTimeout(r,500));return ghWrite(path,obj,msg,retry+1);}
+    throw new Error('保存失败 '+res.status);
+  }
 }
 async function ghUploadFile(filename,dataUri){
   const [meta,b64]=dataUri.split(',');
