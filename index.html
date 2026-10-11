@@ -358,26 +358,30 @@ async function toggleFollow(name){
 function notify(to,text,workId,fromUser){if(!to||to===me?.name)return;DB.notifs.push({id:nextId(),to,text,workId:workId||null,from:fromUser||(me?me.name:'系统'),read:false,time:Date.now()});}
 
 async function loadDanmu(wid){const layer=document.getElementById('danmuLayer');if(!layer)return;layer.innerHTML='';
+  window._activeDm=[];
   try{const fresh=await ghRead(DATA_FILES.danmu);if(fresh)DB.danmu=fresh;}catch(e){}
-  // schedule danmaku by video time
   window._shownDm=new Set();
-  if(window._dmLoop)cancelAnimationFrame(window._dmLoop);
+  // pause/resume danmaku with video
   const v=document.querySelector('video');
-  (function loop(){
+  if(v){
+    v.onpause=()=>{window._dmPaused=true;};
+    v.onplay=()=>{window._dmPaused=false;};
+  }
+  function check(){
     if(!curWork||curWork.id!==wid)return;
     const v=document.querySelector('video');
     const ct=v?v.currentTime:0;
     DB.danmu.filter(d=>d.workId===wid&&!window._shownDm.has(d.id)&&(d.t||0)<=ct).forEach(d=>{
       window._shownDm.add(d.id);spawnDanmu(d);
     });
-    window._dmLoop=requestAnimationFrame(loop);
-  })();
-  // poll for new danmaku
+    requestAnimationFrame(check);
+  }
+  check();
   if(window._dmTimer)clearInterval(window._dmTimer);
   window._dmTimer=setInterval(async()=>{
     if(curWork&&curWork.id!==wid){clearInterval(window._dmTimer);return;}
     try{const fresh=await ghRead(DATA_FILES.danmu);if(fresh)DB.danmu=fresh;}catch(e){}
-  },5000);
+  },4000);
 }
 function spawnDanmu(d){
   const layer=document.getElementById('danmuLayer');if(!layer)return;
@@ -386,8 +390,16 @@ function spawnDanmu(d){
   el.innerHTML=`${d.avatar?`<img src="${d.avatar}">`:''}<span>${esc(d.user)}: ${esc(d.text)}</span>`;
   el.style.top=(5+Math.random()*80)+'%';el.style.right='0';layer.appendChild(el);
   const layerW=layer.offsetWidth||800;
-  const dur=9000+Math.random()*4000,start=performance.now();
-  (function tick(now){const p=(now-start)/dur;if(p>=1)return el.remove();el.style.transform=`translateX(${-p*(layerW+el.offsetWidth+50)}px)`;requestAnimationFrame(tick);})(start);
+  const dur=9000+Math.random()*4000;
+  let elapsed=0,last=performance.now();
+  (function tick(now){
+    if(window._dmPaused){last=now;return requestAnimationFrame(tick);}
+    elapsed+=now-last;last=now;
+    const p=elapsed/dur;
+    if(p>=1)return el.remove();
+    el.style.transform=`translateX(${-p*(layerW+el.offsetWidth+50)}px)`;
+    requestAnimationFrame(tick);
+  })(last);
 }
 async function sendDanmu(){
   try{
