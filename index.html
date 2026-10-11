@@ -296,7 +296,7 @@ async function openWork(id){
     const w=DB.works.find(x=>x.id===id);if(!w){toast('作品不存在或已被删除');return;}
     w.playCount=(w.playCount||0)+1;
     curWork=w;renderDetail(w);go('detail');loadDanmu(w.id);loadComments(w.id);
-    // save play count and history in background
+    history.replaceState(null,'','#/work/'+id);
     ghWrite('data/works.json',DB.works,'播放+1').catch(()=>{});
     if(me){
       DB.history=DB.history.filter(h=>!(h.user===me.name&&h.workId===id));
@@ -309,7 +309,7 @@ function renderDetail(w){
   const player=w.type==='video'
     ?`<div class="player-wrap" oncontextmenu="return false">${w.video?`<video src="${w.video}" controls autoplay controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false"></video>`:'<div style="color:#fff;text-align:center;padding-top:40%">无视频源</div>'}<div class="danmu-layer" id="danmuLayer"></div></div>`
     :`<div class="post-view"><h1>${esc(w.title)}</h1><div class="text">${esc(w.content)}</div>${(w.images||[]).map(i=>`<img src="${i}" oncontextmenu="return false">`).join('')}</div>`;
-  document.getElementById('page-detail').innerHTML=`<div class="detail" oncontextmenu="${w.type==='video'?'return false':''}">${player}
+  document.getElementById('page-detail').innerHTML=`<div class="detail" oncontextmenu="${w.type==='video'?'return false':''}"><div style="display:flex;gap:8px;margin-bottom:10px;align-items:center"><button class="btn btn-ghost" onclick="go('home');history.replaceState(null,'','#/')">返回</button><button class="btn btn-ghost" onclick="navigator.clipboard.writeText(location.href).then(()=>toast('链接已复制'))">复制链接</button><span style="color:#61666d;font-size:13px">ID:${w.id}</span></div>${player}
     <div class="info-row"><div class="avatar">${esc(w.author[0])}</div><div><div style="font-weight:700">${esc(w.author)}</div><div style="font-size:12px;color:#61666d">${w.playCount||0}播放</div></div>
     ${me&&me.name!==w.author?`<button class="btn btn-ghost" id="btnFollow" onclick="toggleFollow('${esc(w.author)}')">${isFollowing(w.author)?'已关注':'+ 关注'}</button>`:''}
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
@@ -557,6 +557,9 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
     }
   }
   renderNav();loadHome();
+  // hash routing: open work from URL
+  const h=location.hash;const m=h.match(/#\/work\/(\d+)/);
+  if(m){const id=parseInt(m[1]);const w=DB.works.find(x=>x.id===id);if(w)openWork(id);}
 })();
 </script>
 </body>
