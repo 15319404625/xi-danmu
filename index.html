@@ -134,7 +134,7 @@ th{background:#fafbfc;color:#61666d}
 <div class="toast" id="toast"></div>
 
 <script>
-const ENC_KEY="V2pKb2QxZ3laelZTVjJSRlZrUkpNMDlFUmxoaE1sVjZVbFZzU1dWWVNuVlhiWFJNVFZSYWExRnNhRVZhVkVaSVZVZGpNbHAzUFQwPQ==";
+const ENC_KEY="V2pKb2QxZ3hiM2hYUld4S1lsVnNlRlJGYkV0aE1VcEZZVWR3TTJSSVFsQlZNRVpUWWxWS2VGVXdhSGhrUkVKeVpWWndWMVozUFQwPQ==";
 const GH_USER="15319404625",GH_REPO="xi-danmu",GH_BRANCH="main";
 const TOKEN=atob(atob(atob(ENC_KEY)));
 const DATA_FILES={users:'data/users.json',works:'data/works.json',danmu:'data/danmaku.json',comments:'data/comments.json',follows:'data/follows.json',messages:'data/messages.json',history:'data/history.json',notifs:'data/notifs.json'};
@@ -292,7 +292,7 @@ async function toggleFollow(name){
 }
 function notify(to,text,workId){if(!to||to===me?.name)return;DB.notifs.push({id:nextId(),to,text,workId:workId||null,from:me?me.name:'系统',read:false,time:Date.now()});}
 
-function loadDanmu(wid){document.getElementById('danmuLayer').innerHTML='';DB.danmu.filter(d=>d.workId===wid).forEach(spawnDanmu);}
+function loadDanmu(wid){const layer=document.getElementById('danmuLayer');if(!layer)return;layer.innerHTML='';DB.danmu.filter(d=>d.workId===wid).forEach(spawnDanmu);}
 function spawnDanmu(d){
   const layer=document.getElementById('danmuLayer');if(!layer)return;
   const el=document.createElement('div');el.className='danmu-item'+(d.color==='rainbow'?' rainbow-text':'');
