@@ -155,7 +155,7 @@ th{background:#fafbfc;color:#61666d}
 const ENC_KEY="V2pKb2QxZ3hiM2hYUld4S1lsVnNlRlJGYkV0aE1VcEZZVWR3TTJSSVFsQlZNRVpUWWxWS2VGVXdhSGhrUkVKeVpWWndWMVozUFQwPQ==";
 const GH_USER="15319404625",GH_REPO="xi-danmu",GH_BRANCH="main";
 const TOKEN=atob(atob(atob(ENC_KEY)));
-const DATA_FILES={users:'data/users.json',works:'data/works.json',danmu:'data/danmaku.json',comments:'data/comments.json',follows:'data/follows.json',messages:'data/messages.json',history:'data/history.json',notifs:'data/notifs.json',reports:'data/reports.json'};
+const DATA_FILES={users:'data/users.json',works:'data/works.json',danmu:'data/danmaku.json',comments:'data/comments.json',follows:'data/follows.json',messages:'data/messages.json',history:'data/history.json',notifs:'data/notifs.json',reports:'data/reports.json',viewers:'data/viewers.json'};
 const CATS=[['all','全部'],['animation','动画'],['bangumi','番剧'],['game','游戏'],['knowledge','知识'],['tech','科技'],['music','音乐'],['dance','舞蹈'],['film','影视'],['life','生活'],['guichu','鬼畜'],['fashion','时尚'],['ent','娱乐'],['sports','运动']];
 const COLORS=[['white','#fff','默认白'],['red','#f00','红'],['yellow','#ff0','黄'],['blue','#0080ff','蓝'],['green','#0c0','绿'],['cyan','#0ff','青'],['purple','#a0f','紫'],['rainbow','rainbow','渐变(LV3+)']];
 
@@ -317,6 +317,11 @@ async function openWork(id,skipCount){
     if(!skipCount)w.playCount=(w.playCount||0)+1;
     curWork=w;renderDetail(w);go('detail');loadDanmu(w.id);loadComments(w.id);
     history.replaceState(null,'','#/work/'+id);
+  // register viewer
+  DB.viewers=DB.viewers||[];
+  DB.viewers=DB.viewers.filter(v=>v.workId!==id||v.user!==(me?me.name:'guest'));
+  DB.viewers.push({workId:id,user:me?me.name:'guest',time:Date.now()});
+  ghWrite('data/viewers.json',DB.viewers,'在线').catch(()=>{});
     ghWrite('data/works.json',DB.works,'播放+1').catch(()=>{});
     if(me){
       DB.history=DB.history.filter(h=>!(h.user===me.name&&h.workId===id));
@@ -330,7 +335,7 @@ function renderDetail(w){
     ?`<div class="player-wrap" oncontextmenu="return false">${w.video?`<video src="${w.video}" controls autoplay controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false"></video>`:'<div style="color:#fff;text-align:center;padding-top:40%">无视频源</div>'}<div class="danmu-layer" id="danmuLayer"></div></div>`
     :`<div class="post-view"><h1>${esc(w.title)}</h1><div class="text">${esc(w.content)}</div>${(w.images||[]).map(i=>`<img src="${i}" oncontextmenu="return false">`).join('')}</div>`;
   document.getElementById('page-detail').innerHTML=`<div class="detail" oncontextmenu="${w.type==='video'?'return false':''}"><div style="display:flex;gap:8px;margin-bottom:10px;align-items:center"><button class="btn btn-ghost" onclick="go('home');history.replaceState(null,'','#/')">返回</button><button class="btn btn-ghost" onclick="navigator.clipboard.writeText(location.href).then(()=>toast('链接已复制'))">复制链接</button><span style="color:#61666d;font-size:13px">ID:${w.id}</span></div>${player}
-    <div class="info-row"><div class="avatar">${esc(w.author[0])}</div><div><div style="font-weight:700">${esc(w.author)}</div><div style="font-size:12px;color:#61666d">${w.playCount||0}播放</div></div>
+    <div class="info-row"><div class="avatar">${esc(w.author[0])}</div><div><div style="font-weight:700">${esc(w.author)}</div><div style="font-size:12px;color:#61666d">${w.playCount||0}播放 · <span style="color:var(--pink)">${(DB.viewers||[]).filter(v=>v.workId===w.id&&Date.now()-v.time<60000).length}人正在看</span></div></div>
     ${me&&me.name!==w.author?`<button class="btn btn-ghost" id="btnFollow" onclick="toggleFollow('${esc(w.author)}')">${isFollowing(w.author)?'已关注':'+ 关注'}</button>`:''}
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
       <button class="act-btn" id="btnLike" onclick="act('like')">👍 <span id="cLike">${(w.likes||[]).length}</span></button>
