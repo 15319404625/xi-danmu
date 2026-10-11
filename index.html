@@ -340,7 +340,7 @@ function renderDetail(w){
     ?`<div class="player-wrap" oncontextmenu="return false">${w.video?`<video src="${w.video}" controls autoplay controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false"></video>`:'<div style="color:#fff;text-align:center;padding-top:40%">无视频源</div>'}<div class="danmu-layer" id="danmuLayer"></div></div>`
     :`<div class="post-view"><h1>${esc(w.title)}</h1><div class="text">${esc(w.content)}</div>${(w.images||[]).map(i=>`<img src="${i}" oncontextmenu="return false">`).join('')}</div>`;
   document.getElementById('page-detail').innerHTML=`<div class="detail" oncontextmenu="${w.type==='video'?'return false':''}"><div style="display:flex;gap:8px;margin-bottom:10px;align-items:center"><button class="btn btn-ghost" onclick="go('home');history.replaceState(null,'','#/')">返回</button><button class="btn btn-ghost" onclick="navigator.clipboard.writeText(location.href).then(()=>toast('链接已复制'))">复制链接</button><span style="color:#61666d;font-size:13px">ID:${w.id}</span></div>${player}
-    <div class="info-row"><div class="avatar">${esc(w.author[0])}</div><div><div style="font-weight:700">${esc(w.author)}</div><div style="font-size:12px;color:#61666d">${w.playCount||0}播放 · <span style="color:var(--pink)">${(DB.viewers||[]).filter(v=>v.workId===w.id&&Date.now()-v.time<60000).length}人正在看</span></div></div>
+    <div class="info-row"><div class="avatar">${esc(w.author[0])}</div><div><div style="font-weight:700">${esc(w.author)}</div><div style="font-size:12px;color:#61666d">${w.playCount||0}播放 · <span id="liveCount" style="color:var(--pink)">${(DB.viewers||[]).filter(v=>v.workId===w.id&&Date.now()-v.time<60000).length}人正在看</span></div></div>
     ${me&&me.name!==w.author?`<button class="btn btn-ghost" id="btnFollow" onclick="toggleFollow('${esc(w.author)}')">${isFollowing(w.author)?'已关注':'+ 关注'}</button>`:''}
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
       <button class="act-btn" id="btnLike" onclick="act('like')">👍 <span id="cLike">${(w.likes||[]).length}</span></button>
@@ -661,6 +661,7 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         if(w){
           curPlayCount=w.playCount;curLikes=w.likes;curCoins=w.coins;curFavs=w.favs;
           const l=document.getElementById('cLike');if(l)l.textContent=(w.likes||[]).length;
+    const lc=document.getElementById('liveCount');if(lc)lc.textContent=(DB.viewers||[]).filter(v=>v.workId===curWork.id&&Date.now()-v.time<60000).length+'人正在看';
           const c=document.getElementById('cCoin');if(c)c.textContent=(w.coins||[]).length;
         }
       }
