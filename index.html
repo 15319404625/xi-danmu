@@ -428,12 +428,19 @@ async function clearAllDanmu(){
 function loadComments(wid){
   const list=DB.comments.filter(c=>c.workId===wid);
   document.getElementById('cmtCount').textContent=list.length;
-  const tops=list.filter(c=>!c.parentId);
+  let tops=list.filter(c=>!c.parentId);
+  tops.sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0));
   document.getElementById('cmtList').innerHTML=tops.length?tops.map(c=>cmtHtml(c,list)).join(''):'<div class="empty">还没有评论</div>';
 }
 function cmtHtml(c,list){
   const reps=list.filter(x=>x.parentId===c.id);
-  return `<div class="cmt"><div class="avatar" style="width:34px;height:34px">${c.avatar?`<img src="${c.avatar}">`:esc(c.user[0])}</div><div class="body"><div class="name">${esc(c.user)}</div><div class="txt">${esc(c.text)}</div><div class="foot"><span onclick="likeCmt(${c.id})">❤️ ${(c.likes||[]).length}</span><span onclick="var b=document.getElementById('rb-${c.id}');b.style.display=b.style.display==='none'?'block':'none'">回复</span></div><div class="reply-box" id="rb-${c.id}" style="display:none"><input placeholder="回复" onkeydown="if(event.key==='Enter')sendComment(${c.id},this)"></div><div class="replies">${reps.map(r=>`<div class="cmt" style="border:none;padding:6px 0"><div class="avatar" style="width:28px;height:28px">${r.avatar?`<img src="${r.avatar}">`:esc(r.user[0])}</div><div class="body"><div class="name">${esc(r.user)}</div><div class="txt">${esc(r.text)}</div><div class="foot"><span onclick="likeCmt(${r.id})">❤️ ${(r.likes||[]).length}</span><span onclick="var b=document.getElementById('rb-${r.id}');b.style.display=b.style.display==='none'?'block':'none'">回复</span></div><div class="reply-box" id="rb-${r.id}" style="display:none"><input placeholder="回复" onkeydown="if(event.key==='Enter')sendComment(${r.id},this)"></div></div></div>`).join('')}</div></div></div>`;
+  return `<div class="cmt"><div class="avatar" style="width:34px;height:34px">${c.avatar?`<img src="${c.avatar}">`:esc(c.user[0])}</div><div class="body"><div class="name">${esc(c.user)}</div><div class="txt">${esc(c.text)}</div><div class="foot"><span onclick="likeCmt(${c.id})">❤️ ${(c.likes||[]).length}</span><span onclick="var b=document.getElementById('rb-${c.id}');b.style.display=b.style.display==='none'?'block':'none'">回复</span>${me&&curWork&&me.name===curWork.author?`<span onclick="togglePin(${c.id})" style="color:${c.pinned?'var(--pink)':'#61666d'}">${c.pinned?'📌 取消置顶':'置顶'}</span>`:''}</div>${c.pinned?'<div style="color:var(--pink);font-size:12px;font-weight:700;margin-top:2px">📌 置顶</div>':''}<div class="reply-box" id="rb-${c.id}" style="display:none"><input placeholder="回复" onkeydown="if(event.key==='Enter')sendComment(${c.id},this)"></div><div class="replies">${reps.map(r=>`<div class="cmt" style="border:none;padding:6px 0"><div class="avatar" style="width:28px;height:28px">${r.avatar?`<img src="${r.avatar}">`:esc(r.user[0])}</div><div class="body"><div class="name">${esc(r.user)}</div><div class="txt">${esc(r.text)}</div><div class="foot"><span onclick="likeCmt(${r.id})">❤️ ${(r.likes||[]).length}</span><span onclick="var b=document.getElementById('rb-${r.id}');b.style.display=b.style.display==='none'?'block':'none'">回复</span></div><div class="reply-box" id="rb-${r.id}" style="display:none"><input placeholder="回复" onkeydown="if(event.key==='Enter')sendComment(${r.id},this)"></div></div></div>`).join('')}</div></div></div>`;
+}
+async function togglePin(id){
+  const c=DB.comments.find(x=>x.id===id);if(!c)return;
+  c.pinned=!c.pinned;
+  await ghWrite('data/comments.json',DB.comments,c.pinned?'置顶':'取消置顶');
+  loadComments(curWork.id);toast(c.pinned?'已置顶':'已取消置顶');
 }
 async function sendComment(parentId,inputEl){
   try{
