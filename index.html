@@ -3,471 +3,402 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>汐 - 弹幕视频社区</title>
+<title>鸽子视频观看站</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--pink:#FB7299;--blue:#00AEEC;--bg:#f6f7f8;--card:#fff;--text:#18191c;--sub:#61666d}
-body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}
+:root{--pink:#FB7299;--blue:#00AEEC}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#f6f7f8;color:#18191c}
 a{color:inherit;text-decoration:none}
 button{cursor:pointer;border:none;font-family:inherit}
 input,textarea,select{font-family:inherit;outline:none}
-
-/* nav */
-.nav{position:sticky;top:0;z-index:100;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;padding:0 24px;height:56px;gap:20px}
-.logo{font-size:26px;font-weight:900;color:var(--pink);cursor:pointer}
-.nav .search{flex:1;max-width:400px;display:flex;background:#f1f2f3;border-radius:8px;overflow:hidden}
+.nav{position:sticky;top:0;z-index:100;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;padding:0 24px;height:56px;gap:16px}
+.logo{font-size:22px;font-weight:900;color:var(--pink);cursor:pointer;white-space:nowrap}
+.nav .search{flex:1;max-width:360px;display:flex;background:#f1f2f3;border-radius:8px;overflow:hidden}
 .nav .search input{flex:1;border:none;background:transparent;padding:8px 12px;font-size:14px}
 .nav .search button{background:transparent;padding:0 14px;color:#61666d}
-.nav .right{display:flex;align-items:center;gap:14px;margin-left:auto}
-.avatar{width:36px;height:36px;border-radius:50%;background:var(--pink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;overflow:hidden}
+.nav .right{display:flex;align-items:center;gap:12px;margin-left:auto}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--pink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;overflow:hidden;flex-shrink:0}
 .avatar img{width:100%;height:100%;object-fit:cover}
 .btn{padding:7px 16px;border-radius:8px;font-size:14px}
 .btn-pink{background:var(--pink);color:#fff}
 .btn-ghost{background:#f1f2f3}
-.btn-blue{background:var(--blue);color:#fff}
 .upload-btn{background:var(--pink);color:#fff;width:40px;height:40px;border-radius:50%;font-size:22px;display:flex;align-items:center;justify-content:center}
-
-/* categories */
-.cats{background:#fff;display:flex;gap:22px;padding:0 24px;height:44px;align-items:center;overflow-x:auto;border-bottom:1px solid #f1f2f3}
+.cats{background:#fff;display:flex;gap:20px;padding:0 24px;height:42px;align-items:center;overflow-x:auto;border-bottom:1px solid #f1f2f3}
 .cats span{white-space:nowrap;color:#61666d;font-size:14px;cursor:pointer;padding:4px 0}
 .cats span.active{color:var(--pink);font-weight:700}
-
-/* banner */
-.banner{margin:16px 24px;border-radius:12px;background:linear-gradient(120deg,#FB7299,#00AEEC);color:#fff;padding:36px 32px}
-.banner h1{font-size:34px;margin-bottom:8px}
-.banner p{opacity:.9}
-
-/* grid */
+.banner{margin:16px 24px;border-radius:12px;background:linear-gradient(120deg,#FB7299,#00AEEC);color:#fff;padding:32px}
+.banner h1{font-size:30px;margin-bottom:6px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;padding:16px 24px}
-.card{background:var(--card);border-radius:10px;overflow:hidden;cursor:pointer;transition:transform .15s}
+.card{background:#fff;border-radius:10px;overflow:hidden;cursor:pointer;transition:transform .15s}
 .card:hover{transform:translateY(-3px)}
 .card .thumb{position:relative;aspect-ratio:16/9;background:#000;overflow:hidden}
 .card .thumb img,.card .thumb video{width:100%;height:100%;object-fit:cover}
 .card .thumb .playico{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:40px}
-.card .stats{position:absolute;left:6px;bottom:6px;right:6px;display:flex;justify-content:space-between;color:#fff;font-size:12px;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.card .stats{position:absolute;left:6px;bottom:6px;right:6px;display:flex;justify-content:space-between;color:#fff;font-size:12px;text-shadow:0 1px 2px #000}
 .card .body{padding:8px 10px}
 .card .title{font-size:14px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.card .meta{font-size:12px;color:var(--sub);margin-top:4px}
+.card .meta{font-size:12px;color:#61666d;margin-top:4px}
 .tag-type{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:#e3f2fd;color:var(--blue);margin-right:4px}
-
-/* work detail */
-.detail{max-width:1000px;margin:16px auto;padding:0 16px}
+.page{max-width:1000px;margin:16px auto;padding:0 16px;display:none}
+.page.show{display:block}
 .player-wrap{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9}
 .player-wrap video{width:100%;height:100%;object-fit:contain}
 .danmu-layer{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .danmu-item{position:absolute;white-space:nowrap;font-size:20px;text-shadow:0 1px 2px #000;display:flex;align-items:center;gap:6px;will-change:transform}
 .danmu-item img{width:26px;height:26px;border-radius:50%;object-fit:cover;border:1px solid #fff}
-.danmu-item .dn-name{font-size:12px;opacity:.85}
 .rainbow-text{background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:rain 3s linear infinite}
 @keyframes rain{to{background-position:200% center}}
 .post-view{background:#fff;border-radius:12px;padding:30px;min-height:200px}
 .post-view h1{font-size:24px;margin-bottom:16px}
 .post-view .text{font-size:16px;line-height:1.8;white-space:pre-wrap}
 .post-view img{max-width:100%;border-radius:8px;margin-top:12px}
-
-.info-row{display:flex;align-items:center;gap:16px;background:#fff;border-radius:12px;padding:14px 18px;margin-top:14px}
+.info-row{display:flex;align-items:center;gap:14px;background:#fff;border-radius:12px;padding:14px 18px;margin-top:14px;flex-wrap:wrap}
 .act-btn{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:18px;background:#f1f2f3;font-size:14px;color:#61666d}
-.act-btn.on{background:#ffeef3;color:var(--pink)}
-.act-btn.liked{background:#ffeef3;color:var(--pink)}
-.upinfo{display:flex;align-items:center;gap:10px;margin-left:auto}
-
-/* danmu bar */
-.danmu-bar{background:#fff;border-radius:12px;padding:12px 16px;margin-top:12px;display:flex;flex-direction:column;gap:10px}
-.danmu-bar .row1{display:flex;gap:10px;align-items:center}
-.danmu-bar input{flex:1;border:1px solid #e3e5e7;border-radius:8px;padding:9px 12px;font-size:14px}
+.danmu-bar{background:#fff;border-radius:12px;padding:12px 16px;margin-top:12px}
+.danmu-bar input{width:100%;border:1px solid #e3e5e7;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:8px}
 .colors{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent}
 .swatch.sel{border-color:#000}
-.swatch.locked{opacity:.4;cursor:not-allowed;position:relative}
-
-/* comments */
+.swatch.locked{opacity:.4;cursor:not-allowed}
 .comments{background:#fff;border-radius:12px;padding:18px;margin-top:14px}
-.comments h3{margin-bottom:12px}
 .cmt-input{display:flex;gap:10px;margin-bottom:18px}
 .cmt-input input{flex:1;border:1px solid #e3e5e7;border-radius:8px;padding:9px 12px}
 .cmt{display:flex;gap:10px;padding:12px 0;border-top:1px solid #f1f2f3}
 .cmt .body{flex:1}
-.cmt .name{font-size:13px;color:var(--sub)}
+.cmt .name{font-size:13px;color:#61666d}
 .cmt .txt{font-size:15px;margin:4px 0}
-.cmt .foot{font-size:12px;color:var(--sub);display:flex;gap:14px;align-items:center}
+.cmt .foot{font-size:12px;color:#61666d;display:flex;gap:14px}
 .cmt .foot span{cursor:pointer}
 .replies{margin-left:36px;border-left:2px solid #f1f2f3;padding-left:12px}
-.reply-box{margin:6px 0}
-.reply-box input{width:100%;border:1px solid #e3e5e7;border-radius:6px;padding:6px 10px;font-size:13px}
-
-/* modal */
+.reply-box input{width:100%;border:1px solid #e3e5e7;border-radius:6px;padding:6px 10px;font-size:13px;margin:4px 0}
 .mask{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center}
 .mask.show{display:flex}
 .modal{background:#fff;border-radius:14px;width:480px;max-width:92vw;max-height:88vh;overflow-y:auto;padding:24px}
 .modal h2{margin-bottom:16px}
-.modal label{display:block;font-size:13px;color:var(--sub);margin:10px 0 4px}
+.modal label{display:block;font-size:13px;color:#61666d;margin:10px 0 4px}
 .modal input,.modal textarea,.modal select{width:100%;border:1px solid #e3e5e7;border-radius:8px;padding:9px 12px;font-size:14px}
 .modal textarea{min-height:80px;resize:vertical}
-.modal .typepick{display:flex;gap:10px;margin-bottom:10px}
-.modal .typepick div{flex:1;border:2px solid #e3e5e7;border-radius:10px;padding:16px;text-align:center;cursor:pointer}
-.modal .typepick div.sel{border-color:var(--pink);background:#fff0f5}
-.modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
-
-/* panel pages */
-.page{max-width:1000px;margin:16px auto;padding:0 16px;display:none}
-.page.show{display:block}
-.tabs{display:flex;gap:18px;border-bottom:1px solid #e3e5e7;margin-bottom:16px}
-.tabs span{padding:10px 4px;cursor:pointer;color:var(--sub)}
-.tabs span.active{color:var(--pink);border-bottom:2px solid var(--pink);font-weight:700}
+.typepick{display:flex;gap:10px;margin-bottom:10px}
+.typepick div{flex:1;border:2px solid #e3e5e7;border-radius:10px;padding:16px;text-align:center;cursor:pointer}
+.typepick div.sel{border-color:var(--pink);background:#fff0f5}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
 th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #f1f2f3;font-size:14px}
-th{background:#fafbfc;color:var(--sub);font-weight:500}
+th{background:#fafbfc;color:#61666d}
 .mini{padding:3px 10px;border-radius:6px;font-size:12px;background:#f1f2f3;cursor:pointer}
 .mini.danger{background:#ffeef3;color:var(--pink)}
-.mini.pink{background:var(--pink);color:#fff}
 .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:10px 20px;border-radius:8px;z-index:300;display:none;font-size:14px}
-.empty{text-align:center;color:var(--sub);padding:40px}
-@media(max-width:640px){.grid{grid-template-columns:repeat(2,1fr)}.nav{padding:0 12px}.banner{margin:12px}.detail{padding:0 8px}}
+.empty{text-align:center;color:#61666d;padding:40px}
+.chat-layout{display:grid;grid-template-columns:260px 1fr;background:#fff;border-radius:12px;overflow:hidden;height:600px}
+.chat-list{border-right:1px solid #f1f2f3;overflow-y:auto}
+.chat-list .item{padding:12px 16px;cursor:pointer;display:flex;gap:10px;align-items:center}
+.chat-list .item:hover,.chat-list .item.active{background:#f6f7f8}
+.chat-win{display:flex;flex-direction:column}
+.chat-msgs{flex:1;overflow-y:auto;padding:16px}
+.chat-msg{margin-bottom:12px;display:flex;gap:8px}
+.chat-msg.me{flex-direction:row-reverse}
+.chat-bubble{max-width:60%;padding:8px 12px;border-radius:12px;background:#f1f2f3;font-size:14px}
+.chat-msg.me .chat-bubble{background:var(--pink);color:#fff}
+.chat-bubble img{max-width:200px;border-radius:8px;display:block}
+.chat-input{padding:12px;border-top:1px solid #f1f2f3;display:flex;gap:8px}
+.chat-input input{flex:1;border:1px solid #e3e5e7;border-radius:8px;padding:8px 12px}
+.notif-item{padding:12px 16px;background:#fff;border-radius:10px;margin-bottom:8px;display:flex;gap:10px;align-items:center;cursor:pointer}
+.notif-item.unread{background:#fff0f5}
+.tabs2{display:flex;gap:18px;border-bottom:1px solid #e3e5e7;margin-bottom:16px}
+.tabs2 span{padding:10px 4px;cursor:pointer;color:#61666d}
+.tabs2 span.active{color:var(--pink);border-bottom:2px solid var(--pink);font-weight:700}
+@media(max-width:640px){.grid{grid-template-columns:repeat(2,1fr)}.chat-layout{grid-template-columns:1fr;height:70vh}}
 </style>
 </head>
 <body>
-
 <div class="nav">
-  <div class="logo" onclick="go('home')">汐</div>
-  <div class="search"><input id="searchInput" placeholder="搜索视频、UP主"><button onclick="doSearch()">搜索</button></div>
+  <div class="logo" onclick="go('home')">鸽子视频</div>
+  <div class="search"><input id="searchInput" placeholder="搜索"><button onclick="doSearch()">搜索</button></div>
   <div class="right">
-    <button class="upload-btn" title="上传" onclick="openUpload()">+</button>
+    <button class="upload-btn" onclick="openUpload()">+</button>
     <div id="navUser"></div>
   </div>
 </div>
-
 <div class="cats" id="cats"></div>
 
-<!-- HOME -->
 <div class="page show" id="page-home">
-  <div class="banner"><h1>欢迎来到汐</h1><p>用弹幕连接世界 · 动画 / 游戏 / 知识 / 生活</p></div>
+  <div class="banner"><h1>鸽子视频观看站</h1><p>看视频、发弹幕、交鸽子朋友</p></div>
   <div class="grid" id="homeGrid"></div>
 </div>
-
-<!-- DETAIL -->
 <div class="page" id="page-detail"></div>
-
-<!-- PROFILE -->
 <div class="page" id="page-profile"></div>
-
-<!-- ADMIN -->
 <div class="page" id="page-admin"></div>
+<div class="page" id="page-messages"></div>
 
-<!-- MODALS -->
-<div class="mask" id="mask">
-  <div class="modal" id="modalBox"></div>
-</div>
+<div class="mask" id="mask"><div class="modal" id="modalBox"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
+const ENC_KEY="V2pKb2QxZ3laelZTVjJSRlZrUkpNMDlFUmxoaE1sVjZVbFZzU1dWWVNuVlhiWFJNVFZSYWExRnNhRVZhVkVaSVZVZGpNbHAzUFQwPQ==";
+const GH_USER="15319404625",GH_REPO="xi-danmu",GH_BRANCH="main";
+const TOKEN=atob(atob(atob(ENC_KEY)));
+const DATA_FILES={users:'data/users.json',works:'data/works.json',danmu:'data/danmaku.json',comments:'data/comments.json',follows:'data/follows.json',messages:'data/messages.json',history:'data/history.json',notifs:'data/notifs.json'};
 const CATS=[['all','全部'],['animation','动画'],['bangumi','番剧'],['game','游戏'],['knowledge','知识'],['tech','科技'],['music','音乐'],['dance','舞蹈'],['film','影视'],['life','生活'],['guichu','鬼畜'],['fashion','时尚'],['ent','娱乐'],['sports','运动']];
-const COLORS=[['white','#fff','白色(默认)'],['red','#f00','红色'],['yellow','#ff0','黄色'],['blue','#0080ff','蓝色'],['green','#0c0','绿色'],['cyan','#0ff','青色'],['purple','#a0f','紫色'],['rainbow','rainbow','渐变彩(LV3+)']];
-let me=null, token=localStorage.getItem('xi_token')||null;
-let curWork=null, es=null, selColor='white', activeCat='all';
+const COLORS=[['white','#fff','默认白'],['red','#f00','红'],['yellow','#ff0','黄'],['blue','#0080ff','蓝'],['green','#0c0','绿'],['cyan','#0ff','青'],['purple','#a0f','紫'],['rainbow','rainbow','渐变(LV3+)']];
 
-// ---------- helpers ----------
+let DB={}, me=null, activeCat='all', curWork=null, selColor='white', curChatWith=null, msgTab='notif';
+let cacheBust=0;
+
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',2200);}
-function api(path,opts={}){opts.headers=Object.assign({'Content-Type':'application/json'},opts.headers||{});if(token)opts.headers.Authorization='Bearer '+token;return fetch(path,opts).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('请求失败 '+r.status));return j;});}
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));document.getElementById('page-'+p).classList.add('show');window.scrollTo(0,0);}
-function fmtTime(t){const d=new Date(t);return d.getMonth()+1+'月'+d.getDate()+'日';}
 
-// ---------- auth ----------
-function refreshMe(){return api('/api/auth/me').then(j=>{me=j.user;renderNav();}).catch(()=>{me=null;renderNav();});}
+async function ghRead(path){
+  try{const r=await fetch(`https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/${path}?t=${cacheBust++}`);if(!r.ok)return null;return JSON.parse(await r.text());}catch(e){return null;}
+}
+async function ghWrite(path,obj,msg){
+  let sha=null;
+  try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}`,{headers:{Authorization:'token '+TOKEN}});if(r.ok)sha=(await r.json()).sha;}catch(e){}
+  const body=JSON.stringify(obj);
+  const res=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({message:msg,content:btoa(unescape(encodeURIComponent(body))),branch:GH_BRANCH,...(sha?{sha}:{})})});
+  if(!res.ok)throw new Error('保存失败 '+res.status);
+}
+async function ghUploadFile(filename,dataUri){
+  const [meta,b64]=dataUri.split(',');
+  const br=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/blobs`,{method:'POST',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({content:b64,encoding:'base64'})});
+  const blobSha=(await br.json()).sha;
+  const tr=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/trees/${GH_BRANCH}`,{headers:{Authorization:'token '+TOKEN}});
+  const treeSha=(await tr.json()).sha;
+  const nr2=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/trees`,{method:'POST',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({base_tree:treeSha,tree:[{path:'uploads/'+filename,mode:'100644',type:'blob',sha:blobSha}]})});
+  const newTreeSha=(await nr2.json()).sha;
+  const cr=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/commits`,{method:'POST',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({message:'upload '+filename,tree:newTreeSha,parents:[treeSha]})});
+  const commitSha=(await cr.json()).sha;
+  await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/refs/heads/${GH_BRANCH}`,{method:'PATCH',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({sha:commitSha})});
+  return `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/uploads/${filename}`;
+}
+function hashPw(p){let h=2166136261;for(let i=0;i<p.length;i++){h^=p.charCodeAt(i);h=Math.imulh,16777615);}return 'x'+h;}
+function expForLevel(L){return L*(L+1)*5;}
+function addExp(name,amt){const u=DB.users.find(x=>x.name===name);if(!u)return;u.exp=(u.exp||0)+amt;let l=0;while(l<1000&&u.exp>=expForLevel(l+1))l++;u.level=l;}
+function nextId(){return Date.now()+Math.floor(Math.random()*1000);}
+async function loadDB(){
+  const keys=Object.keys(DATA_FILES);
+  const arr=await Promise.all(keys.map(k=>ghRead(DATA_FILES[k])));
+  keys.forEach((k,i)=>DB[k]=arr[i]||[]);
+  if(!DB.users.find(u=>u.name==='管理员账号'))DB.users.push({id:1,name:'管理员账号',pass:hashPw('508679mn114514'),avatar:'',level:1000,exp:999000,isAdmin:true});
+  if(!DB.works.find(w=>w.title==='欢迎来到我自制的网站'))DB.works.unshift({id:nextId(),type:'post',title:'欢迎来到我自制的网站',content:'欢迎来到我自制的网站，欢迎大家使用',images:[],category:'life',author:'管理员账号',authorId:1,playCount:0,likes:[],coins:[],createdAt:Date.now()});
+}
+
 function renderNav(){
   const el=document.getElementById('navUser');
   if(me){
-    el.innerHTML=`<div class="avatar" onclick="openMenu()">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div>
-      <span style="font-size:13px">LV${me.level}</span>`;
+    const unread=DB.notifs.filter(n=>n.to===me.name&&!n.read).length+DB.messages.filter(m=>m.to===me.name&&!m.read).length;
+    el.innerHTML=`<div style="position:relative"><div class="avatar" onclick="openMenu()">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div>${unread?`<div class="badge">${unread}</div>`:''}</div>`;
   } else {
     el.innerHTML=`<button class="btn btn-ghost" onclick="openLogin(false)">登录</button><button class="btn btn-pink" onclick="openLogin(true)">注册</button>`;
   }
 }
 function openMenu(){
-  const items=[['我的主页',()=>openProfile()],['观看历史',()=>openHistory()],['发布我的作品',()=>openUpload()]];
+  const items=[['我的主页',()=>openProfile()],['消息/私信',()=>openMessages()],['观看历史',()=>openHistory()]];
   if(me.isAdmin)items.push(['管理后台',()=>openAdmin()]);
-  items.push(['退出登录',()=>{localStorage.removeItem('xi_token');token=null;me=null;renderNav();go('home');loadHome();}]);
+  items.push(['退出登录',()=>{localStorage.removeItem('xi_user');me=null;renderNav();go('home');loadHome();}]);
   openModal(`<h2>${esc(me.name)} · LV${me.level}</h2>`+items.map(([t,f],i)=>`<div style="padding:12px;border-bottom:1px solid #f1f2f3;cursor:pointer" onclick="closeModal();_m[${i}]()">${t}</div>`).join(''));
   window._m=items.map(x=>x[1]);
 }
-
-// ---------- auth modal ----------
 function openLogin(isReg){
-  openModal(`<h2>${isReg?'注册':'登录'}</h2>
-    <label>用户名</label><input id="auName">
-    <label>密码</label><input id="auPass" type="password">
-    <div class="actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button>
-    <button class="btn btn-pink" onclick="doLogin(${isReg})">${isReg?'注册':'登录'}</button></div>`);
+  openModal(`<h2>${isReg?'注册':'登录'}</h2><label>用户名</label><input id="auName"><label>密码</label><input id="auPass" type="password"><div class="actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-pink" onclick="doLogin(${isReg})">${isReg?'注册':'登录'}</button></div>`);
 }
-function doLogin(isReg){
+async function doLogin(isReg){
   const name=document.getElementById('auName').value.trim(),pass=document.getElementById('auPass').value;
-  api(isReg?'/api/register':'/api/login',{method:'POST',body:JSON.stringify({name,pass})}).then(j=>{
-    token=j.token;localStorage.setItem('xi_token',token);closeModal();refreshMe();toast(isReg?'注册成功':'登录成功');loadHome();
-  }).catch(e=>toast(e.message));
+  if(!name||!pass)return toast('请填写完整');
+  if(isReg){
+    if(DB.users.find(u=>u.name===name))return toast('用户名已存在');
+    DB.users.push({id:nextId(),name,pass:hashPw(pass),avatar:'',level:0,exp:0,isAdmin:false});
+    await ghWrite('data/users.json',DB.users,'注册 '+name);
+  } else {
+    const u=DB.users.find(x=>x.name===name);
+    if(!u||u.pass!==hashPw(pass))return toast('用户名或密码错误');
+  }
+  localStorage.setItem('xi_user',name);me=DB.users.find(u=>u.name===name);renderNav();closeModal();toast(isReg?'注册成功':'登录成功');loadHome();
 }
 
-// ---------- home ----------
-function loadCats(){
-  document.getElementById('cats').innerHTML=CATS.map(([v,n])=>`<span class="${v===activeCat?'active':''}" onclick="activeCat='${v}';loadCats();loadHome()">${n}</span>`).join('');
+function loadCats(){document.getElementById('cats').innerHTML=CATS.map(([v,n])=>`<span class="${v===activeCat?'active':''}" onclick="activeCat='${v}';loadCats();loadHome()">${n}</span>`).join('');}
+function workCard(w){
+  const dmN=DB.danmu.filter(d=>d.workId===w.id).length,cmN=DB.comments.filter(c=>c.workId===w.id).length;
+  const thumb=w.type==='video'?(w.cover?`<img src="${w.cover}">`:(w.video?`<video src="${w.video}" muted></video>`:`<div class="playico">▶</div>`)):((w.images||[]).length?`<img src="${w.images[0]}">`:`<div class="playico" style="font-size:24px">文</div>`);
+  return `<div class="card" onclick="openWork(${w.id})"><div class="thumb">${thumb}<div class="stats"><span>▶ ${w.playCount||0}</span><span>💬 ${dmN}</span></div></div><div class="body"><div class="title"><span class="tag-type">${w.type==='video'?'视频':'图文'}</span>${esc(w.title)}</div><div class="meta">${esc(w.author)} · ${(w.likes||[]).length}赞 · ${cmN}评</div></div></div>`;
 }
-function loadHome(){
-  loadCats();
-  api('/api/works?category='+activeCat).then(list=>{
-    document.getElementById('homeGrid').innerHTML=list.length?list.map(card).join(''):'<div class="empty">暂无内容，快来发布第一条</div>';
-  });
-}
-function card(w){
-  const thumb=w.type==='video'
-    ? (w.coverUrl?`<img src="${w.coverUrl}">`:(w.videoUrl?`<video src="${w.videoUrl}" muted></video>`:`<div class="playico">▶</div>`))
-    : (w.images&&w.images.length?`<img src="${w.images[0]}">`:`<div class="playico" style="font-size:24px">文</div>`);
-  return `<div class="card" onclick="openWork(${w.id})">
-    <div class="thumb">${thumb}
-      <div class="stats"><span>▶ ${w.playCount}</span><span>💬 ${w.danmuCount}</span></div>
-    </div>
-    <div class="body"><div class="title"><span class="tag-type">${w.type==='video'?'视频':'图文'}</span>${esc(w.title)}</div>
-    <div class="meta">${esc(w.authorName)} · ${w.likeCount}赞 · ${fmtTime(w.createdAt)}</div></div></div>`;
-}
+async function loadHome(){loadCats();let list=[...DB.works].sort((a,b)=>b.createdAt-a.createdAt);if(activeCat!=='all')list=list.filter(w=>w.category===activeCat);document.getElementById('homeGrid').innerHTML=list.length?list.map(workCard).join(''):'<div class="empty">暂无内容</div>';}
 function doSearch(){toast('搜索：'+document.getElementById('searchInput').value);}
 
-// ---------- upload ----------
 function openUpload(){
   if(!me)return openLogin(false);
-  openModal(`<h2>发布作品</h2>
-    <div class="typepick">
-      <div id="tp-video" onclick="pickType('video')"><b>视频投稿</b><br><small>上传视频文件</small></div>
-      <div id="tp-post" onclick="pickType('post')"><b>图文投稿</b><br><small>文字+图片</small></div>
-    </div>
-    <label>标题</label><input id="upTitle">
-    <label>简介/正文</label><textarea id="upContent"></textarea>
-    <label>分区</label><select id="upCat">${CATS.filter(c=>c[0]!=='all').map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')}</select>
-    <div id="videoFields">
-      <label>视频文件(mp4)</label><input type="file" id="upVideo" accept="video/*">
-      <label>封面图</label><input type="file" id="upCover" accept="image/*">
-    </div>
-    <div id="postFields" style="display:none">
-      <label>图片(可多选)</label><input type="file" id="upImages" accept="image/*" multiple>
-    </div>
-    <div class="actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button>
-    <button class="btn btn-pink" onclick="doUpload()">发布</button></div>`);
+  openModal(`<h2>发布作品</h2><div class="typepick"><div id="tp-video" onclick="pickType('video')"><b>视频投稿</b><br><small>不限大小</small></div><div id="tp-post" onclick="pickType('post')"><b>图文投稿</b><br><small>文字+图片</small></div></div><label>标题</label><input id="upTitle"><label>简介/正文</label><textarea id="upContent"></textarea><label>分区</label><select id="upCat">${CATS.filter(c=>c[0]!=='all').map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')}</select><div id="videoFields"><label>视频文件(不限大小)</label><input type="file" id="upVideo" accept="video/*"><label>或填视频链接</label><input id="upVideoUrl" placeholder="https://..."><label>封面图</label><input type="file" id="upCover" accept="image/*"></div><div id="postFields" style="display:none"><label>图片(可多选)</label><input type="file" id="upImages" accept="image/*" multiple></div><div class="actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-pink" onclick="doUpload()">发布</button></div>`);
   window._utype='video';pickType('video');
 }
-function pickType(t){
-  window._utype=t;
-  document.getElementById('tp-video').classList.toggle('sel',t==='video');
-  document.getElementById('tp-post').classList.toggle('sel',t==='post');
-  document.getElementById('videoFields').style.display=t==='video'?'block':'none';
-  document.getElementById('postFields').style.display=t==='post'?'block':'none';
-}
-function doUpload(){
-  const fd=new FormData();
-  fd.append('type',window._utype);
-  fd.append('title',document.getElementById('upTitle').value);
-  fd.append('content',document.getElementById('upContent').value);
-  fd.append('category',document.getElementById('upCat').value);
-  if(window._utype==='video'){
-    const v=document.getElementById('upVideo').files[0];if(v)fd.append('video',v);
-    const c=document.getElementById('upCover').files[0];if(c)fd.append('cover',c);
-  } else {
-    [...document.getElementById('upImages').files].forEach(f=>fd.append('images',f));
-  }
-  fetch('/api/works',{method:'POST',headers:token?{Authorization:'Bearer '+token}:{}},body:fd).then(r=>r.json()).then(j=>{
-    if(j.error)return toast(j.error);closeModal();toast('发布成功');loadHome();go('home');
-  }).catch(e=>toast(e.message));
+function pickType(t){window._utype=t;document.getElementById('tp-video').classList.toggle('sel',t==='video');document.getElementById('tp-post').classList.toggle('sel',t==='post');document.getElementById('videoFields').style.display=t==='video'?'block':'none';document.getElementById('postFields').style.display=t==='post'?'block':'none';}
+function readFileAsDataURL(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);});}
+async function doUpload(){
+  const title=document.getElementById('upTitle').value.trim();if(!title)return toast('标题必填');
+  toast('上传中(大文件较慢)...');
+  let video='',cover='',images=[];
+  try{
+    if(window._utype==='video'){
+      const vf=document.getElementById('upVideo').files[0];
+      if(vf)video=await ghUploadFile(Date.now()+'_'+vf.name,await readFileAsDataURL(vf));else video=document.getElementById('upVideoUrl').value.trim();
+      const cf=document.getElementById('upCover').files[0];if(cf)cover=await ghUploadFile(Date.now()+'_c.jpg',await readFileAsDataURL(cf));
+    } else {for(const f of document.getElementById('upImages').files)images.push(await ghUploadFile(Date.now()+'_'+f.name,await readFileAsDataURL(f)));}
+  }catch(e){return toast('上传失败: '+e.message);}
+  DB.works.unshift({id:nextId(),type:window._utype,title,content:document.getElementById('upContent').value,category:document.getElementById('upCat').value,video,cover,images,author:me.name,authorId:me.id,playCount:0,likes:[],coins:[],favs:[],createdAt:Date.now()});
+  await ghWrite('data/works.json',DB.works,'发布 '+title);
+  addExp(me.name,window._utype==='video'?50:10);await ghWrite('data/users.json',DB.users,'经验');
+  closeModal();toast('发布成功');loadHome();go('home');
 }
 
-// ---------- detail ----------
-function openWork(id){
-  api('/api/works/'+id).then(w=>{
-    curWork=w;renderDetail(w);go('detail');connectDanmu(w.id);loadComments(w.id);
-  }).catch(e=>toast(e.message));
+async function openWork(id){
+  const w=DB.works.find(x=>x.id===id);if(!w)return;
+  w.playCount=(w.playCount||0)+1;
+  DB.history=DB.history.filter(h=>!(h.user===me?.name&&h.workId===id));
+  DB.history.unshift({user:me?me.name:'游客',workId:id,time:Date.now()});
+  curWork=w;renderDetail(w);go('detail');loadDanmu(w.id);loadComments(w.id);
 }
 function renderDetail(w){
-  const d=document.getElementById('page-detail');
-  let player='';
-  if(w.type==='video'){
-    player=`<div class="player-wrap"><video id="player" src="${w.videoUrl}" controls autoplay></video><div class="danmu-layer" id="danmuLayer"></div></div>`;
-  } else {
-    player=`<div class="post-view"><h1>${esc(w.title)}</h1><div class="text">${esc(w.content)}</div>${(w.images||[]).map(i=>`<img src="${i}">`).join('')}<div class="danmu-layer" id="danmuLayer" style="position:absolute;pointer-events:none"></div></div>`;
-  }
-  d.innerHTML=`
-    <div class="detail">
-      ${player}
-      <div class="info-row">
-        <div class="avatar">${esc(w.authorName[0])}</div>
-        <div><div style="font-weight:700">${esc(w.authorName)}</div><div style="font-size:12px;color:var(--sub)">${w.type==='video'?'视频':'图文'} · ${w.playCount}播放</div></div>
-        <div class="upinfo">
-          <button class="act-btn" id="btnLike" onclick="act('like')">👍 <span id="cLike">${w.likeCount}</span></button>
-          <button class="act-btn" id="btnCoin" onclick="act('coin')">🪙 <span id="cCoin">${w.coinCount}</span></button>
-          <button class="act-btn" id="btnFav" onclick="act('fav')">⭐ <span id="cFav">${w.favCount}</span></button>
-          <button class="act-btn" onclick="navigator.clipboard&&navigator.clipboard.writeText(location.href);toast('链接已复制')">🔗 分享</button>
-        </div>
-      </div>
-      <div class="danmu-bar">
-        <div class="row1">
-          <input id="dmInput" placeholder="发个友善的弹幕见证当下" onkeydown="if(event.key==='Enter')sendDanmu()">
-          <button class="btn btn-pink" onclick="sendDanmu()">发送</button>
-        </div>
-        <div class="colors" id="colorRow"></div>
-      </div>
-      <div class="comments" id="commentBox">
-        <h3>评论 <span id="cmtCount">${w.commentCount}</span></h3>
-        <div class="cmt-input">
-          <input id="cmtInput" placeholder="发一条友善的评论">
-          <button class="btn btn-pink" onclick="sendComment(null)">评论</button>
-        </div>
-        <div id="cmtList"></div>
-      </div>
-    </div>`;
+  const player=w.type==='video'
+    ?`<div class="player-wrap">${w.video?`<video src="${w.video}" controls autoplay></video>`:'<div style="color:#fff;text-align:center;padding-top:40%">无视频源</div>'}<div class="danmu-layer" id="danmuLayer"></div></div>`
+    :`<div class="post-view"><h1>${esc(w.title)}</h1><div class="text">${esc(w.content)}</div>${(w.images||[]).map(i=>`<img src="${i}">`).join('')}</div>`;
+  document.getElementById('page-detail').innerHTML=`<div class="detail">${player}
+    <div class="info-row"><div class="avatar">${esc(w.author[0])}</div><div><div style="font-weight:700">${esc(w.author)}</div><div style="font-size:12px;color:#61666d">${w.playCount||0}播放</div></div>
+    ${me&&me.name!==w.author?`<button class="btn btn-ghost" id="btnFollow" onclick="toggleFollow('${esc(w.author)}')">${isFollowing(w.author)?'已关注':'+ 关注'}</button>`:''}
+    <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="act-btn" id="btnLike" onclick="act('like')">👍 <span id="cLike">${(w.likes||[]).length}</span></button>
+      <button class="act-btn" id="btnCoin" onclick="act('coin')">🪙 <span id="cCoin">${(w.coins||[]).length}</span></button>
+      <button class="act-btn" onclick="openChatWith('${esc(w.author)}')">💬 私信</button>
+    </div></div>
+    <div class="danmu-bar"><input id="dmInput" placeholder="发个友善的弹幕" onkeydown="if(event.key==='Enter')sendDanmu()"><div class="colors" id="colorRow"></div></div>
+    <div class="comments"><h3>评论 <span id="cmtCount">${DB.comments.filter(c=>c.workId===w.id).length}</span></h3>
+      <div class="cmt-input"><input id="cmtInput" placeholder="发一条友善的评论"><button class="btn btn-pink" onclick="sendComment(null)">评论</button></div><div id="cmtList"></div></div></div>`;
   renderColors();
 }
-function renderColors(){
-  document.getElementById('colorRow').innerHTML='<span style="font-size:13px">颜色:</span>'+COLORS.map(([v,hex,label])=>{
-    const locked=v==='rainbow'&&(!me||me.level<3);
-    return `<div class="swatch ${v===selColor?'sel':''} ${locked?'locked':''}" title="${label}" data-v="${v}" style="background:${hex==='rainbow'?'linear-gradient(90deg,red,yellow,green,cyan,blue,purple)':hex}" onclick="pickColor('${v}',${locked})"></div>`;
-  }).join('');
-  document.querySelectorAll('.swatch').forEach(s=>s.onclick=()=>pickColor(s.dataset.v,s.classList.contains('locked')));
+function renderColors(){document.getElementById('colorRow').innerHTML='<span style="font-size:13px">颜色:</span>'+COLORS.map(([v,hex])=>{const locked=v==='rainbow'&&(!me||me.level<3);return `<div class="swatch ${v===selColor?'sel':''} ${locked?'locked':''}" title="${v}" style="background:${hex==='rainbow'?'linear-gradient(90deg,red,yellow,green,cyan,blue,purple)':hex}" onclick="pickColor('${v}',${locked})"></div>`;}).join('');}
+function pickColor(v,locked){if(locked)return toast('渐变需要LV3');selColor=v;renderColors();}
+async function act(a){
+  if(!me)return openLogin(false);const w=curWork;
+  if(a==='like'){const i=w.likes.indexOf(me.name);if(i>=0)w.likes.splice(i,1);else{w.likes.push(me.name);notify(w.author,me.name+' 赞了你的作品《'+w.title+'》',w.id);}}
+  if(a==='coin'&&!w.coins.includes(me.name))w.coins.push(me.name);
+  await ghWrite('data/works.json',DB.works,'互动');
+  document.getElementById('cLike').textContent=w.likes.length;document.getElementById('cCoin').textContent=w.coins.length;
 }
-function pickColor(v,locked){
-  if(locked)return toast('渐变彩色需要 LV3 及以上等级解锁');
-  selColor=v;renderColors();
-}
-function act(a){
+function isFollowing(name){return (DB.follows.find(f=>f.follower===me?.name)?.following||[]).includes(name);}
+async function toggleFollow(name){
   if(!me)return openLogin(false);
-  api(`/api/works/${curWork.id}/act`,{method:'POST',body:JSON.stringify({action:a})}).then(j=>{
-    document.getElementById('cLike').textContent=j.likeCount;
-    document.getElementById('cCoin').textContent=j.coinCount;
-    document.getElementById('cFav').textContent=j.favCount;
-    if(a==='like')document.getElementById('btnLike').classList.toggle('liked',j.liked);
-    if(a==='fav')document.getElementById('btnFav').classList.toggle('on',j.faved);
-    toast(j.liked?'已点赞':a==='like'?'已取消点赞':'成功');
-  }).catch(e=>toast(e.message));
+  let f=DB.follows.find(f=>f.follower===me.name);if(!f){f={follower:me.name,following:[]};DB.follows.push(f);}
+  const i=f.following.indexOf(name);if(i>=0)f.following.splice(i,1);else{f.following.push(name);notify(name,me.name+' 关注了你',null);}
+  await ghWrite('data/follows.json',DB.follows,'关注');await ghWrite('data/notifs.json',DB.notifs,'通知');
+  document.getElementById('btnFollow').textContent=f.following.includes(name)?'已关注':'+ 关注';
 }
+function notify(to,text,workId){if(!to||to===me?.name)return;DB.notifs.push({id:nextId(),to,text,workId:workId||null,from:me?me.name:'系统',read:false,time:Date.now()});}
 
-// ---------- danmaku ----------
-function connectDanmu(wid){
-  if(es)es.close();
-  es=new EventSource('/api/danmu/stream');
-  es.onmessage=ev=>{try{const d=JSON.parse(ev.data);if(d.type==='danmu'&&d.data.workId===wid)spawnDanmu(d.data);}catch(e){}};
-  api('/api/danmu/'+wid).then(list=>list.forEach(spawnDanmu));
-}
+function loadDanmu(wid){document.getElementById('danmuLayer').innerHTML='';DB.danmu.filter(d=>d.workId===wid).forEach(spawnDanmu);}
 function spawnDanmu(d){
   const layer=document.getElementById('danmuLayer');if(!layer)return;
   const el=document.createElement('div');el.className='danmu-item'+(d.color==='rainbow'?' rainbow-text':'');
   if(d.color!=='rainbow'&&d.color!=='white')el.style.color=d.color;
-  if(d.color==='white')el.style.color='#fff';
-  el.innerHTML=`${d.avatar?`<img src="${d.avatar}">`:''}<span>${esc(d.userName)}: ${esc(d.text)}</span>`;
-  el.style.top=(5+Math.random()*80)+'%';
-  el.style.right='-40%';
-  layer.appendChild(el);
-  const dur=9000+Math.random()*4000;
-  const start=performance.now();
-  function tick(now){
-    const p=(now-start)/dur;
-    if(p>=1){el.remove();return;}
-    el.style.transform=`translateX(${-p*140}vw)`;
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
+  el.innerHTML=`${d.avatar?`<img src="${d.avatar}">`:''}<span>${esc(d.user)}: ${esc(d.text)}</span>`;
+  el.style.top=(5+Math.random()*80)+'%';el.style.right='-40%';layer.appendChild(el);
+  const dur=9000+Math.random()*4000,start=performance.now();
+  (function tick(now){const p=(now-start)/dur;if(p>=1)return el.remove();el.style.transform=`translateX(${-p*140}vw)`;requestAnimationFrame(tick);})(start);
 }
-function sendDanmu(){
+async function sendDanmu(){
   const inp=document.getElementById('dmInput');const text=inp.value.trim();if(!text)return;
-  api('/api/danmu',{method:'POST',body:JSON.stringify({workId:curWork.id,text,color:selColor})}).then(()=>{inp.value='';refreshMe();}).catch(e=>toast(e.message));
+  if(selColor==='rainbow'&&(!me||me.level<3))return toast('渐变需要LV3');
+  DB.danmu.push({id:nextId(),workId:curWork.id,user:me?me.name:'游客',avatar:me?.avatar||'',text,color:selColor,time:Date.now()});
+  await ghWrite('data/danmaku.json',DB.danmu,'弹幕');
+  if(me){addExp(me.name,2);await ghWrite('data/users.json',DB.users,'经验');}
+  inp.value='';loadDanmu(curWork.id);
 }
 
-// ---------- comments ----------
 function loadComments(wid){
-  api('/api/comments/'+wid).then(list=>{
-    document.getElementById('cmtCount').textContent=list.length;
-    const tops=list.filter(c=>!c.parentId);
-    document.getElementById('cmtList').innerHTML=tops.length?tops.map(c=>cmtHtml(c,list)).join(''):'<div class="empty">还没有评论，来抢沙发</div>';
-  });
+  const list=DB.comments.filter(c=>c.workId===wid);
+  document.getElementById('cmtCount').textContent=list.length;
+  const tops=list.filter(c=>!c.parentId);
+  document.getElementById('cmtList').innerHTML=tops.length?tops.map(c=>cmtHtml(c,list)).join(''):'<div class="empty">还没有评论</div>';
 }
 function cmtHtml(c,list){
   const reps=list.filter(x=>x.parentId===c.id);
-  return `<div class="cmt">
-    <div class="avatar" style="width:34px;height:34px">${c.avatar?`<img src="${c.avatar}">`:esc(c.userName[0])}</div>
-    <div class="body">
-      <div class="name">${esc(c.userName)} · LV?</div>
-      <div class="txt">${esc(c.text)}</div>
-      <div class="foot"><span onclick="likeCmt(${c.id},this)">❤️ ${(c.likes||[]).length}</span><span onclick="toggleReply(${c.id})">回复</span></div>
-      <div class="reply-box" id="rb-${c.id}" style="display:none"><input placeholder="回复 @${esc(c.userName)}" onkeydown="if(event.key==='Enter')sendComment(${c.id},this)"></div>
-      <div class="replies">${reps.map(r=>`
-        <div class="cmt" style="border:none;padding:6px 0">
-          <div class="avatar" style="width:28px;height:28px">${r.avatar?`<img src="${r.avatar}">`:esc(r.userName[0])}</div>
-          <div class="body"><div class="name">${esc(r.userName)}</div><div class="txt">${esc(r.text)}</div>
-          <div class="foot"><span onclick="likeCmt(${r.id},this)">❤️ ${(r.likes||[]).length}</span></div></div>
-        </div>`).join('')}</div>
-    </div></div>`;
+  return `<div class="cmt"><div class="avatar" style="width:34px;height:34px">${c.avatar?`<img src="${c.avatar}">`:esc(c.user[0])}</div><div class="body"><div class="name">${esc(c.user)}</div><div class="txt">${esc(c.text)}</div><div class="foot"><span onclick="likeCmt(${c.id})">❤️ ${(c.likes||[]).length}</span><span onclick="var b=document.getElementById('rb-${c.id}');b.style.display=b.style.display==='none'?'block':'none'">回复</span></div><div class="reply-box" id="rb-${c.id}" style="display:none"><input placeholder="回复" onkeydown="if(event.key==='Enter')sendComment(${c.id},this)"></div><div class="replies">${reps.map(r=>`<div class="cmt" style="border:none;padding:6px 0"><div class="avatar" style="width:28px;height:28px">${r.avatar?`<img src="${r.avatar}">`:esc(r.user[0])}</div><div class="body"><div class="name">${esc(r.user)}</div><div class="txt">${esc(r.text)}</div><div class="foot"><span onclick="likeCmt(${r.id})">❤️ ${(r.likes||[]).length}</span><span onclick="var b=document.getElementById('rb-${r.id}');b.style.display=b.style.display==='none'?'block':'none'">回复</span></div><div class="reply-box" id="rb-${r.id}" style="display:none"><input placeholder="回复" onkeydown="if(event.key==='Enter')sendComment(${r.id},this)"></div></div></div>`).join('')}</div></div></div>`;
 }
-function toggleReply(id){const b=document.getElementById('rb-'+id);b.style.display=b.style.display==='none'?'block':'none';}
-function likeCmt(id,el){if(!me)return openLogin(false);api(`/api/comments/${id}/like`,{method:'POST'}).then(j=>{el.innerHTML='❤️ '+j.count;}).catch(e=>toast(e.message));}
-function sendComment(parentId,inputEl){
-  const inp=inputEl||document.getElementById('cmtInput');
-  const text=inp.value.trim();if(!text)return;
-  api('/api/comments',{method:'POST',body:JSON.stringify({workId:curWork.id,text,parentId})}).then(()=>{loadComments(curWork.id);refreshMe();}).catch(e=>toast(e.message));
-}
-
-// ---------- profile / history ----------
-function openProfile(){
+async function sendComment(parentId,inputEl){
   if(!me)return openLogin(false);
-  go('profile');
-  Promise.all([api('/api/my/works'),api('/api/my/history')]).then(([works,hist])=>{
-    document.getElementById('page-profile').innerHTML=`
-      <div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px">
-        <div class="avatar" style="width:64px;height:64px;font-size:24px">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div>
-        <div><h2>${esc(me.name)}</h2><div style="color:var(--sub)">等级 LV${me.level}/1000 · 经验 ${me.exp}</div></div>
-        <div style="margin-left:auto"><label class="btn btn-ghost" style="cursor:pointer">上传头像<input type="file" hidden accept="image/*" onchange="uploadAvatar(this)"></label></div>
-      </div>
-      <div class="tabs"><span class="active">我的作品</span></div>
-      <div class="grid">${works.length?works.map(card).join(''):'<div class="empty">还没发布作品</div>'}</div>`;
-  });
+  const inp=inputEl||document.getElementById('cmtInput');const text=inp.value.trim();if(!text)return;
+  const c={id:nextId(),workId:curWork.id,parentId:parentId||null,user:me.name,avatar:me.avatar||'',text,likes:[],time:Date.now()};
+  DB.comments.push(c);
+  // notify: if reply to a comment, notify the comment author
+  if(parentId){const parent=DB.comments.find(x=>x.id===parentId);if(parent)notify(parent.user,me.name+' 回复了你的评论: '+text,curWork.id);}
+  else notify(curWork.author,me.name+' 评论了你的作品《'+curWork.title+'》',curWork.id);
+  await ghWrite('data/comments.json',DB.comments,'评论');await ghWrite('data/notifs.json',DB.notifs,'通知');
+  addExp(me.name,3);await ghWrite('data/users.json',DB.users,'经验');
+  inp.value='';loadComments(curWork.id);
 }
-function uploadAvatar(inp){
-  const fd=new FormData();fd.append('file',inp.files[0]);
-  fetch('/api/upload/avatar',{method:'POST',headers:token?{Authorization:'Bearer '+token}:{}},body:fd).then(r=>r.json()).then(j=>{if(j.url){toast('头像已更新');refreshMe();openProfile();}});
-}
-function openHistory(){
+async function likeCmt(id){
   if(!me)return openLogin(false);
-  go('profile');
-  api('/api/my/history').then(list=>{
-    document.getElementById('page-profile').innerHTML=`
-      <div class="tabs"><span class="active">观看历史</span></div>
-      <div class="grid">${list.length?list.map(card).join(''):'<div class="empty">暂无观看历史</div>'}</div>`;
-  });
+  const c=DB.comments.find(x=>x.id===id);if(!c)return;
+  c.likes=c.likes||[];const i=c.likes.indexOf(me.name);
+  if(i>=0)c.likes.splice(i,1);else{c.likes.push(me.name);notify(c.user,me.name+' 赞了你的评论',c.workId);}
+  await ghWrite('data/comments.json',DB.comments,'赞评论');await ghWrite('data/notifs.json',DB.notifs,'通知');
+  loadComments(curWork.id);
 }
 
-// ---------- admin ----------
-function openAdmin(){
-  if(!me||!me.isAdmin)return toast('仅管理员可用');
-  go('admin');renderAdmin();
+function openMessages(){if(!me)return openLogin(false);go('messages');renderMessages();}
+function renderMessages(){
+  const myNotifs=DB.notifs.filter(n=>n.to===me.name).sort((a,b)=>b.time-a.time);
+  const peers=[...new Set(DB.messages.filter(m=>m.from===me.name||m.to===me.name).flatMap(m=>[m.from,m.to]))].filter(p=>p&&p!==me.name);
+  document.getElementById('page-messages').innerHTML=`<h2 style="margin:10px 0">消息中心</h2>
+    <div class="tabs2"><span class="${msgTab==='notif'?'active':''}" onclick="msgTab='notif';renderMessages()">通知</span><span class="${msgTab==='chat'?'active':''}" onclick="msgTab='chat';renderMessages()">私信</span></div>
+    ${msgTab==='notif'?`<div>${myNotifs.length?myNotifs.map(n=>`<div class="notif-item ${n.read?'':'unread'}" onclick="openNotif(${n.id})"><div class="avatar">${esc(n.from[0])}</div><div><div>${esc(n.text)}</div><div style="font-size:12px;color:#61666d">${new Date(n.time).toLocaleString()}</div></div></div>`).join(''):'<div class="empty">暂无通知</div>'}</div>`
+    :`<div class="chat-layout"><div class="chat-list">${peers.length?peers.map(p=>`<div class="item" onclick="openChat('${esc(p)}')"><div class="avatar">${esc(p[0])}</div><div style="font-weight:600">${esc(p)}</div></div>`).join(''):'<div class="empty">还没有会话</div>'}</div><div class="chat-win" id="chatWin"><div class="empty">选一个人开始聊天</div></div></div>`}`;
 }
-function renderAdmin(){
-  Promise.all([api('/api/admin/users'),api('/api/admin/danmu'),api('/api/admin/comments'),api('/api/admin/works')]).then(([users,danmus,comments,works])=>{
-    document.getElementById('page-admin').innerHTML=`
-      <h2 style="margin:10px 0">管理后台</h2>
-      <h3 style="margin:14px 0 6px">用户（升降级）</h3>
-      <table><tr><th>ID</th><th>用户名</th><th>等级</th><th>经验</th><th>操作</th></tr>
-      ${users.map(u=>`<tr><td>${u.id}</td><td>${esc(u.name)}${u.isAdmin?' 👑':''}</td><td>LV${u.level}</td><td>${u.exp||0}</td>
-        <td><button class="mini" onclick="setLv(${u.id},${u.level+1})">升1级</button> <button class="mini" onclick="setLv(${u.id},${u.level-1})">降1级</button></td></tr>`).join('')}</table>
-      <h3 style="margin:18px 0 6px">弹幕（${danmus.length}）</h3>
-      <table><tr><th>ID</th><th>用户</th><th>内容</th><th>操作</th></tr>
-      ${danmus.slice(0,50).map(d=>`<tr><td>${d.id}</td><td>${esc(d.userName)}</td><td>${esc(d.text)}</td><td><button class="mini danger" onclick="delDm(${d.id})">删除</button></td></tr>`).join('')}</table>
-      <h3 style="margin:18px 0 6px">作品（${works.length}）</h3>
-      <table><tr><th>ID</th><th>标题</th><th>作者</th><th>播放</th><th>操作</th></tr>
-      ${works.map(w=>`<tr><td>${w.id}</td><td>${esc(w.title)}</td><td>${esc(w.authorName)}</td><td>${w.playCount}</td><td><button class="mini danger" onclick="delWork(${w.id})">删除</button></td></tr>`).join('')}</table>`;
-  }).catch(e=>toast(e.message));
+async function openNotif(id){
+  const n=DB.notifs.find(x=>x.id===id);if(!n)return;
+  n.read=true;await ghWrite('data/notifs.json',DB.notifs,'已读');
+  if(n.workId)openWork(n.workId);else renderMessages();
 }
-function setLv(id,lv){api(`/api/admin/users/${id}/level`,{method:'POST',body:JSON.stringify({level:lv})}).then(()=>{toast('等级已改');renderAdmin();refreshMe();}).catch(e=>toast(e.message));}
-function delDm(id){api('/api/admin/danmu/'+id,{method:'DELETE'}).then(()=>{toast('已删');renderAdmin();});}
-function delWork(id){api('/api/admin/works/'+id,{method:'DELETE'}).then(()=>{toast('已删');renderAdmin();});}
+function openChat(withWho){curChatWith=withWho;renderMessages();
+  const msgs=DB.messages.filter(m=>(m.from===me.name&&m.to===withWho)||(m.from===withWho&&m.to===me.name)).sort((a,b)=>a.time-b.time);
+  document.getElementById('chatWin').innerHTML=`<div style="padding:12px 16px;border-bottom:1px solid #f1f2f3;font-weight:700">${esc(withWho)}</div><div class="chat-msgs" id="chatMsgs">${msgs.map(m=>`<div class="chat-msg ${m.from===me.name?'me':''}"><div class="avatar" style="width:30px;height:30px">${esc(m.from[0])}</div><div class="chat-bubble">${m.image?`<img src="${m.image}">`:esc(m.text)}</div></div>`).join('')}</div><div class="chat-input"><input id="chatInput" placeholder="输入..." onkeydown="if(event.key==='Enter')sendChat()"><button class="btn btn-ghost" onclick="document.getElementById('chatFile').click()">图</button><input type="file" id="chatFile" accept="image/*" hidden onchange="sendChatImage(this)"><button class="btn btn-pink" onclick="sendChat()">发送</button></div>`;
+  document.getElementById('chatMsgs').scrollTop=99999;
+}
+function openChatWith(name){openMessages();msgTab='chat';openChat(name);}
+async function sendChat(){
+  const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return;
+  DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text,image:'',read:false,time:Date.now()});
+  await ghWrite('data/messages.json',DB.messages,'私信');openChat(curChatWith);
+}
+async function sendChatImage(inp){
+  const f=inp.files[0];if(!f)return;toast('上传图片...');
+  const url=await ghUploadFile(Date.now()+'_c.jpg',await readFileAsDataURL(f));
+  DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text:'',image:url,read:false,time:Date.now()});
+  await ghWrite('data/messages.json',DB.messages,'私信图');openChat(curChatWith);
+}
 
-// ---------- modal ----------
-function openModal(html){document.getElementById('modalBox').innerHTML=html;document.getElementById('mask').classList.add('show');}
+function openProfile(){if(!me)return openLogin(false);go('profile');
+  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div><div><h2>${esc(me.name)}</h2><div style="color:#61666d">LV${me.level}/1000 · 经验${me.exp}</div></div><div style="margin-left:auto"><label class="btn btn-ghost" style="cursor:pointer">头像<input type="file" hidden accept="image/*" onchange="upAvatar(this)"></label></div></div><h3>我的作品</h3><div class="grid">${DB.works.filter(w=>w.author===me.name).map(workCard).join('')||'<div class="empty">还没发布</div>'}</div>`;
+}
+async function upAvatar(inp){
+  const f=inp.files[0];if(!f)return;toast('上传中...');
+  me.avatar=await ghUploadFile(Date.now()+'_a.jpg',await readFileAsDataURL(f));
+  await ghWrite('data/users.json',DB.users,'头像');toast('已更新');openProfile();renderNav();
+}
+function openHistory(){if(!me)return openLogin(false);go('profile');
+  const list=DB.history.filter(h=>h.user===me.name).map(h=>DB.works.find(w=>w.id===h.workId)).filter(Boolean);
+  document.getElementById('page-profile').innerHTML=`<h2 style="margin:10px 0">观看历史</h2><div class="grid">${list.length?list.map(workCard).join(''):'<div class="empty">暂无</div>'}</div>`;
+}
+
+async function openAdmin(){
+  if(!me||!me.isAdmin)return toast('仅管理员');go('admin');
+  document.getElementById('page-admin').innerHTML=`<h2 style="margin:10px 0">管理后台</h2><h3>用户</h3><table><tr><th>用户</th><th>等级</th><th>操作</th></tr>${DB.users.map(u=>`<tr><td>${esc(u.name)}${u.isAdmin?' 👑':''}</td><td>LV${u.level}</td><td><button class="mini" onclick="setLv(${u.id},${u.level+1})">升</button> <button class="mini" onclick="setLv(${u.id},${u.level-1})">降</button></td></tr>`).join('')}</table><h3 style="margin-top:16px">弹幕</h3><table><tr><th>用户</th><th>内容</th><th>操作</th></tr>${DB.danmu.map(d=>`<tr><td>${esc(d.user)}</td><td>${esc(d.text)}</td><td><button class="mini danger" onclick="delDm(${d.id})">删</button></td></tr>`).join('')}</table>`;
+}
+async function setLv(id,lv){const u=DB.users.find(x=>x.id===id);u.level=Math.max(0,Math.min(1000,lv));await ghWrite('data/users.json',DB.users,'调等级');openAdmin();}
+async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('data/danmaku.json',DB.danmu,'删弹幕');openAdmin();}
+
+function openModal(h){document.getElementById('modalBox').innerHTML=h;document.getElementById('mask').classList.add('show');}
 function closeModal(){document.getElementById('mask').classList.remove('show');}
 document.getElementById('mask').onclick=e=>{if(e.target.id==='mask')closeModal();};
 
-// boot
-refreshMe().then(loadHome);
+(async()=>{await loadDB();const n=localStorage.getItem('xi_user');me=n?DB.users.find(u=>u.name===n):null;renderNav();loadHome();})();
 </script>
 </body>
 </html>
