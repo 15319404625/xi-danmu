@@ -234,12 +234,10 @@ async function doLogin(isReg){
   const name=document.getElementById('auName').value.trim(),pass=document.getElementById('auPass').value;
   if(!name||!pass)return toast('请填写完整');
   if(isReg){
-    let finalName=name;
-    while(DB.users.find(u=>u.name===finalName)){finalName=name+Math.floor(Math.random()*900+100);}
-    if(finalName!==name)toast('用户名已存在，已自动改为 '+finalName);
-    DB.users.push({id:nextId(),name:finalName,pass:await hashPw(pass),avatar:'',level:0,exp:0,isAdmin:false});
-    await ghWrite('data/users.json',DB.users,'注册 '+finalName);
-    localStorage.setItem('xi_user',finalName);me=DB.users.find(u=>u.name===finalName);
+    if(DB.users.find(u=>u.name===name))return toast('此用户名已被使用，请换一个吧');
+    DB.users.push({id:nextId(),name:name,pass:await hashPw(pass),avatar:'',level:0,exp:0,isAdmin:false});
+    await ghWrite('data/users.json',DB.users,'注册 '+name);
+    localStorage.setItem('xi_user',name);me=DB.users.find(u=>u.name===name);
   } else {
     const u=DB.users.find(x=>x.name===name);
     if(!u||u.pass!==await hashPw(pass))return toast('用户名或密码错误');
