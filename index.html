@@ -147,7 +147,7 @@ let cacheBust=0, lastAction=0;
 
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',2200);}
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));document.getElementById('page-'+p).classList.add('show');window.scrollTo(0,0);}
+function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));document.getElementById('page-'+p).classList.add('show');window.scrollTo(0,0);if(!location.hash.startsWith('#/work/'))history.replaceState(null,'','#/'+p);}
 
 async function ghRead(path){
   try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}?t=${cacheBust++}`,{headers:{Authorization:'token '+TOKEN}});if(!r.ok)return null;const j=await r.json();return JSON.parse(decodeURIComponent(escape(atob(j.content))));}catch(e){return null;}
@@ -557,9 +557,15 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
     }
   }
   renderNav();loadHome();
-  // hash routing: open work from URL
-  const h=location.hash;const m=h.match(/#\/work\/(\d+)/);
-  if(m){const id=parseInt(m[1]);const w=DB.works.find(x=>x.id===id);if(w)openWork(id,true);}
+  // hash routing
+  const h=location.hash||'#/home';
+  const mw=h.match(/#\/work\/(\d+)/);
+  if(mw){const id=parseInt(mw[1]);const w=DB.works.find(x=>x.id===id);if(w)openWork(id,true);}
+  else{
+    const page=h.replace('#/','')||'home';
+    const valid=['home','messages','profile','admin','history','upload'];
+    if(valid.includes(page))go(page);
+  }
   // auto-refresh data every 5s without reloading page
   setInterval(async()=>{
     try{
