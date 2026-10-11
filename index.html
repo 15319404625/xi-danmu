@@ -193,7 +193,9 @@ async function ghUploadFile(filename,dataUri){
   await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/refs/heads/${GH_BRANCH}`,{method:'PATCH',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({sha:commitSha})});
   return `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/uploads/${filename}`;
 }
-async function hashPw(p){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+async function encStr(s){try{return btoa(unescape(encodeURIComponent(s))).split('').reverse().map((c,i)=>String.fromCharCode(c.charCodeAt(0)+(i%7))).join('');}catch(e){return s;}}
+function decStr(s){try{let r=s.split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)-(i%7))).join('');return decodeURIComponent(escape(atob(r.split('').reverse().join(''))));}catch(e){return s;}}
+function hashPw(p){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 function expForLevel(L){return L*(L+1)*5;}
 function addExp(name,amt){const u=DB.users.find(x=>x.name===name);if(!u)return;u.exp=(u.exp||0)+amt;let l=0;while(l<1000&&u.exp>=expForLevel(l+1))l++;u.level=l;}
 function nextId(){return Date.now()+Math.floor(Math.random()*1000);}
@@ -510,13 +512,13 @@ function openChat(withWho){curChatWith=withWho;renderMessages();
   DB.messages.forEach(m=>{if(m.from===withWho&&m.to===me.name)m.read=true;});
   ghWrite('data/messages.json',DB.messages,'已读').catch(()=>{});
   const msgs=DB.messages.filter(m=>(m.from===me.name&&m.to===withWho)||(m.from===withWho&&m.to===me.name)).sort((a,b)=>a.time-b.time);
-  document.getElementById('chatWin').innerHTML=`<div style="padding:12px 16px;border-bottom:1px solid #f1f2f3;font-weight:700">${esc(withWho)}</div><div class="chat-msgs" id="chatMsgs">${msgs.map(m=>`<div class="chat-msg ${m.from===me.name?'me':''}"><div class="avatar" style="width:30px;height:30px">${esc(m.from[0])}</div><div><div class="chat-bubble">${m.image?`<img src="${m.image}" style="cursor:zoom-in" onclick="window.open(this.src)" download>`:esc(m.text)}</div>${m.from===me.name?`<div style="font-size:11px;color:#61666d;text-align:right;margin-top:2px">${m.read?'已读':'未读'}${(Date.now()-m.time)<60000?` · <a href="javascript:void(0)" onclick="recallMsg(${m.id})" style="color:var(--pink)">撤回</a>`:''}</div>`:''}</div></div>`).join('')}</div><div class="chat-input"><input id="chatInput" placeholder="输入..." onkeydown="if(event.key==='Enter')sendChat()"><button class="btn btn-ghost" onclick="document.getElementById('chatFile').click()">图</button><input type="file" id="chatFile" accept="image/*" hidden onchange="sendChatImage(this)"><button class="btn btn-pink" onclick="sendChat()">发送</button></div>`;
+  document.getElementById('chatWin').innerHTML=`<div style="padding:12px 16px;border-bottom:1px solid #f1f2f3;font-weight:700">${esc(withWho)}</div><div class="chat-msgs" id="chatMsgs">${msgs.map(m=>`<div class="chat-msg ${m.from===me.name?'me':''}"><div class="avatar" style="width:30px;height:30px">${esc(m.from[0])}</div><div><div class="chat-bubble">${m.image?`<img src="${m.image}" style="cursor:zoom-in" onclick="window.open(this.src)" download>`:esc(decStr(m.text))}</div>${m.from===me.name?`<div style="font-size:11px;color:#61666d;text-align:right;margin-top:2px">${m.read?'已读':'未读'}${(Date.now()-m.time)<60000?` · <a href="javascript:void(0)" onclick="recallMsg(${m.id})" style="color:var(--pink)">撤回</a>`:''}</div>`:''}</div></div>`).join('')}</div><div class="chat-input"><input id="chatInput" placeholder="输入..." onkeydown="if(event.key==='Enter')sendChat()"><button class="btn btn-ghost" onclick="document.getElementById('chatFile').click()">图</button><input type="file" id="chatFile" accept="image/*" hidden onchange="sendChatImage(this)"><button class="btn btn-pink" onclick="sendChat()">发送</button></div>`;
   document.getElementById('chatMsgs').scrollTop=99999;
 }
 function openChatWith(name){openMessages();msgTab='chat';openChat(name);}
 async function sendChat(){
   const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return;
-  DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text,image:'',read:false,time:Date.now()});
+  DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text:encStr(text),image:'',read:false,time:Date.now()});
   await ghWrite('data/messages.json',DB.messages,'私信');openChat(curChatWith);
 }
 async function recallMsg(id){
