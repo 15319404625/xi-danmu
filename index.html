@@ -350,7 +350,12 @@ function renderDetail(w){
       <button class="act-btn" onclick="openChatWith('${esc(w.author)}')">💬 私信</button>
       ${me?`<button class="act-btn" onclick="reportWork()">🚩 举报</button>`:''}
     </div></div>
-    ${w.type==='video'?`<div class="danmu-bar"><input id="dmInput" placeholder="发个友善的弹幕" onkeydown="if(event.key==='Enter')sendDanmu()"><div class="colors" id="colorRow"></div>${me&&me.isAdmin?'<button class="btn btn-ghost" onclick="clearAllDanmu()">清空弹幕</button>':''}</div>`:''}
+    ${w.type==='video'?`<div style="display:flex;gap:8px;padding:6px 0;align-items:center">
+<select onchange="document.querySelector('video').playbackRate=parseFloat(this.value)" style="padding:4px;border-radius:6px;border:1px solid #ddd">
+<option value="1.0">1.0x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option><option value="0.5">0.5x</option>
+</select>
+<button class="btn btn-ghost" style="padding:4px 10px" onclick="const l=document.getElementById('danmuLayer');l.style.display=l.style.display==='none'?'':'none'">弹幕开/关</button>
+</div><div class="danmu-bar"><input id="dmInput" placeholder="发个友善的弹幕" onkeydown="if(event.key==='Enter')sendDanmu()"><div class="colors" id="colorRow"></div>${me&&me.isAdmin?'<button class="btn btn-ghost" onclick="clearAllDanmu()">清空弹幕</button>':''}</div>`:''}
     <div class="comments"><h3>评论 <span id="cmtCount">${DB.comments.filter(c=>c.workId===w.id).length}</span></h3>
       <div class="cmt-input"><input id="cmtInput" placeholder="发一条友善的评论" onkeydown="if(event.key==='Enter')sendComment(null)"><button class="btn btn-pink" onclick="sendComment(null)">评论</button></div><div id="cmtList"></div></div>
     <div style="margin-top:20px"><h3>相关推荐</h3><div class="grid" style="padding:10px 0">${DB.works.filter(x=>x.id!==w.id&&x.category===w.category).slice(0,6).map(workCard).join('')||'<div class="empty">暂无相关</div>'}</div></div></div>`;
