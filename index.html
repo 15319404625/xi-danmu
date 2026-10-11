@@ -171,7 +171,7 @@ async function ghUploadFile(filename,dataUri){
   await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/refs/heads/${GH_BRANCH}`,{method:'PATCH',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({sha:commitSha})});
   return `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/uploads/${filename}`;
 }
-function hashPw(p){let h=2166136261;for(let i=0;i<p.length;i++){h^=p.charCodeAt(i);h=Math.imulh,16777615);}return 'x'+h;}
+function hashPw(p){let h=2166136261;for(let i=0;i<p.length;i++){h^=p.charCodeAt(i);h=Math.imul(h,16777615);}return 'x'+h;}
 function expForLevel(L){return L*(L+1)*5;}
 function addExp(name,amt){const u=DB.users.find(x=>x.name===name);if(!u)return;u.exp=(u.exp||0)+amt;let l=0;while(l<1000&&u.exp>=expForLevel(l+1))l++;u.level=l;}
 function nextId(){return Date.now()+Math.floor(Math.random()*1000);}
