@@ -621,7 +621,15 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
       ghWrite('data/users.json',DB.users,'每日升级').catch(()=>{});
     }
   }
+  // restore from localStorage cache for instant render
+  for(const k of Object.keys(DATA_FILES)){
+    try{const c=localStorage.getItem('xi_'+k);if(c)DB[k]=JSON.parse(c);}catch(e){}
+  }
   renderNav();loadHome();
+  // then refresh from server in background
+  (async()=>{for(const k of Object.keys(DATA_FILES)){
+    try{const f=await ghRead(DATA_FILES[k]);if(f){DB[k]=f;localStorage.setItem('xi_'+k,JSON.stringify(f));}}catch(e){}
+  }renderNav();loadHome();if(curWork)renderDetail(curWork);})();
   // hash routing
   const h=location.hash||'#/home';
   const mw=h.match(/#\/work\/(\d+)/);
@@ -638,9 +646,9 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
   // auto-refresh data every 5s without reloading page
   setInterval(async()=>{
     try{
-      for(const k of Object.keys(DATA_FILES)){
+      for(const k of ['works','comments','notifs','messages']){
         const fresh=await ghRead(DATA_FILES[k]);
-        if(fresh)DB[k]=fresh;
+        if(fresh){DB[k]=fresh;localStorage.setItem('xi_'+k,JSON.stringify(fresh));}
       }
       // re-render current view lightly
       if(curWork){
@@ -652,7 +660,7 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         }
       }
     }catch(e){}
-  },500);
+  },3000);
 })();
 </script>
 </body>
