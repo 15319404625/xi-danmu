@@ -143,7 +143,7 @@ const CATS=[['all','全部'],['animation','动画'],['bangumi','番剧'],['game'
 const COLORS=[['white','#fff','默认白'],['red','#f00','红'],['yellow','#ff0','黄'],['blue','#0080ff','蓝'],['green','#0c0','绿'],['cyan','#0ff','青'],['purple','#a0f','紫'],['rainbow','rainbow','渐变(LV3+)']];
 
 let DB={}, me=null, activeCat='all', curWork=null, selColor='white', curChatWith=null, msgTab='notif';
-let cacheBust=0;
+let cacheBust=0, lastAction=0;
 
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',2200);}
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -218,6 +218,11 @@ async function doLogin(isReg){
     localStorage.setItem('xi_user',name);me=u;
   }
   renderNav();closeModal();toast(isReg?'注册成功，已自动登录':'登录成功');loadHome();
+  // daily auto level up for non-admin
+  if(me&&!me.isAdmin&&me.level<1000){
+    const now=Date.now();const last=me.lastDaily||0;
+    if(now-last>=86400000){me.level=Math.min(1000,me.level+1);me.lastDaily=now;ghWrite('data/users.json',DB.users,'每日升级').catch(()=>{});}
+  }
 }
 
 function loadCats(){document.getElementById('cats').innerHTML=CATS.map(([v,n])=>`<span class="${v===activeCat?'active':''}" onclick="activeCat='${v}';loadCats();loadHome()">${n}</span>`).join('');}
@@ -338,9 +343,11 @@ function spawnDanmu(d){
 }
 async function sendDanmu(){
   try{
+    const now=Date.now();if(now-lastAction<3000)return toast('发言太快了，歇 '+(3-Math.floor((now-lastAction)/1000))+' 秒');
     const inp=document.getElementById('dmInput');const text=inp.value.trim();if(!text)return;
     if(!me)return openLogin(false);
     if(selColor==='rainbow'&&(!me||me.level<3))return toast('渐变需要LV3');
+    lastAction=now;
     DB.danmu.push({id:nextId(),workId:curWork.id,user:me.name,avatar:me.avatar||'',text,color:selColor,time:Date.now()});
     await ghWrite('data/danmaku.json',DB.danmu,'弹幕');
     addExp(me.name,2);await ghWrite('data/users.json',DB.users,'经验');
@@ -361,7 +368,9 @@ function cmtHtml(c,list){
 async function sendComment(parentId,inputEl){
   try{
     if(!me)return openLogin(false);
+    const now=Date.now();if(now-lastAction<3000)return toast('发言太快了，歇 '+(3-Math.floor((now-lastAction)/1000))+' 秒');
     const inp=inputEl||document.getElementById('cmtInput');const text=inp.value.trim();if(!text)return;
+    lastAction=now;
     const c={id:nextId(),workId:curWork.id,parentId:parentId||null,user:me.name,avatar:me.avatar||'',text,likes:[],time:Date.now()};
     DB.comments.push(c);
     if(parentId){const parent=DB.comments.find(x=>x.id===parentId);if(parent)notify(parent.user,me.name+' 回复了你的评论: '+text,curWork.id);}
@@ -458,6 +467,15 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
   }
   me=n?DB.users.find(u=>u.name===n)||null:null;
   if(n&&!me)localStorage.removeItem('xi_user');
+  // daily level up
+  if(me&&!me.isAdmin){
+    const today=new Date().toDateString();
+    if(me.lastDay!==today){
+      me.lastDay=today;
+      if(me.level<1000){me.level++;me.exp=(me.exp||0)+expForLevel(me.level);toast('每日签到：等级提升至LV'+me.level);}
+      ghWrite('data/users.json',DB.users,'每日升级').catch(()=>{});
+    }
+  }
   renderNav();loadHome();
 })();
 </script>
