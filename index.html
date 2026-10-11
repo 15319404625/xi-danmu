@@ -291,10 +291,10 @@ async function doUpload(){
   }catch(e){toast('发布失败: '+e.message);}
 }
 
-async function openWork(id){
+async function openWork(id,skipCount){
   try{
     const w=DB.works.find(x=>x.id===id);if(!w){toast('作品不存在或已被删除');return;}
-    w.playCount=(w.playCount||0)+1;
+    if(!skipCount)w.playCount=(w.playCount||0)+1;
     curWork=w;renderDetail(w);go('detail');loadDanmu(w.id);loadComments(w.id);
     history.replaceState(null,'','#/work/'+id);
     ghWrite('data/works.json',DB.works,'播放+1').catch(()=>{});
@@ -559,7 +559,7 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
   renderNav();loadHome();
   // hash routing: open work from URL
   const h=location.hash;const m=h.match(/#\/work\/(\d+)/);
-  if(m){const id=parseInt(m[1]);const w=DB.works.find(x=>x.id===id);if(w)openWork(id);}
+  if(m){const id=parseInt(m[1]);const w=DB.works.find(x=>x.id===id);if(w)openWork(id,true);}
 })();
 </script>
 </body>
