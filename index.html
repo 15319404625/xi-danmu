@@ -254,13 +254,36 @@ function readFileAsDataURL(f){return new Promise((res,rej)=>{const r=new FileRea
 async function doUpload(){
   try{
     const title=document.getElementById('upTitle').value.trim();if(!title)return toast('标题必填');
-    toast('上传中(大文件较慢)...');
     let video='',cover='',images=[];
+    const prog=document.createElement('div');
+    prog.style.cssText='padding:12px;border-radius:8px;background:#f1f2f3;margin:10px 0';
+    prog.innerHTML='<b id="progText">准备中...</b>';
+    document.getElementById('modalBox').appendChild(prog);
+    const setP=t=>{document.getElementById('progText').textContent=t;};
     if(window._utype==='video'){
       const vf=document.getElementById('upVideo').files[0];
-      if(vf)video=await ghUploadFile(Date.now()+'_'+vf.name,await readFileAsDataURL(vf));else video=document.getElementById('upVideoUrl').value.trim();
-      const cf=document.getElementById('upCover').files[0];if(cf)cover=await ghUploadFile(Date.now()+'_c.jpg',await readFileAsDataURL(cf));
-    } else {for(const f of document.getElementById('upImages').files)images.push(await ghUploadFile(Date.now()+'_'+f.name,await readFileAsDataURL(f)));}
+      if(vf){
+        setP('1/3 读取视频文件...');
+        const dataUrl=await readFileAsDataURL(vf);
+        setP('2/3 上传视频到仓库...');
+        video=await ghUploadFile(Date.now()+'_'+vf.name,dataUrl);
+        setP('3/3 生成封面...');
+        // auto capture frame at 0.01s
+        try{
+          const v=document.createElement('video');v.src=video;v.muted=true;v.currentTime=0.01;
+          await new Promise(r=>{v.onloadedmetadata=r;v.onerror=r;});
+          await new Promise(r=>{v.onseeked=r;v.onerror=r;});
+          const c=document.createElement('canvas');c.width=v.videoWidth||640;c.height=v.videoHeight||360;
+          c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+          cover=await ghUploadFile(Date.now()+'_cover.jpg',c.toDataURL('image/jpeg',0.7));
+        }catch(e){}
+        // if user chose a cover, override
+        const cf=document.getElementById('upCover').files[0];if(cf)cover=await ghUploadFile(Date.now()+'_c.jpg',await readFileAsDataURL(cf));
+      } else {video=document.getElementById('upVideoUrl').value.trim();}
+    } else {
+      setP('上传图片...');
+      for(const f of document.getElementById('upImages').files)images.push(await ghUploadFile(Date.now()+'_'+f.name,await readFileAsDataURL(f)));
+    }
     DB.works.unshift({id:nextId(),type:window._utype,title,content:document.getElementById('upContent').value,category:document.getElementById('upCat').value,video,cover,images,author:me.name,authorId:me.id,playCount:0,likes:[],coins:[],favs:[],createdAt:Date.now()});
     await ghWrite('data/works.json',DB.works,'发布 '+title);
     addExp(me.name,window._utype==='video'?50:10);await ghWrite('data/users.json',DB.users,'经验');
@@ -332,7 +355,7 @@ async function toggleFollow(name){
   await ghWrite('data/follows.json',DB.follows,'关注');await ghWrite('data/notifs.json',DB.notifs,'通知');
   document.getElementById('btnFollow').textContent=f.following.includes(name)?'已关注':'+ 关注';
 }
-function notify(to,text,workId){if(!to||to===me?.name)return;DB.notifs.push({id:nextId(),to,text,workId:workId||null,from:me?me.name:'系统',read:false,time:Date.now()});}
+function notify(to,text,workId,fromUser){if(!to||to===me?.name)return;DB.notifs.push({id:nextId(),to,text,workId:workId||null,from:fromUser||(me?me.name:'系统'),read:false,time:Date.now()});}
 
 function loadDanmu(wid){const layer=document.getElementById('danmuLayer');if(!layer)return;layer.innerHTML='';DB.danmu.filter(d=>d.workId===wid).forEach(spawnDanmu);}
 function spawnDanmu(d){
@@ -407,7 +430,15 @@ async function openNotif(id){
   n.read=true;await ghWrite('data/notifs.json',DB.notifs,'已读');
   renderNav();
   if(n.workId){await openWork(n.workId);toast(n.text);}
+  else if(n.from){showUser(n.from);toast(n.text);}
   else{toast(n.text);renderMessages();}
+}
+function showUser(name){
+  go('profile');
+  const u=DB.users.find(x=>x.name===name);
+  const works=DB.works.filter(w=>w.author===name);
+  const following=DB.follows.find(f=>f.follower===me?.name)?.following||[];
+  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${u&&u.avatar?`<img src="${u.avatar}">`:esc(name[0])}</div><div><h2>${esc(name)}</h2><div style="color:#61666d">${u?('LV'+(u.level||0)):''} · ${works.length}个作品</div></div><div style="margin-left:auto">${me&&me.name!==name?`<button class="btn btn-ghost" onclick="toggleFollow('${esc(name)}');showUser('${esc(name)}')">${following.includes(name)?'已关注':'+ 关注'}</button><button class="btn btn-pink" onclick="openChatWith('${esc(name)}')">私信</button>`:''}</div></div><div class="grid">${works.map(workCard).join('')||'<div class="empty">TA还没发布作品</div>'}</div>`;
 }
 function openChat(withWho){curChatWith=withWho;renderMessages();
   // mark incoming messages from withWho as read
