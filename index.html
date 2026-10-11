@@ -179,7 +179,6 @@ async function loadDB(){
   const keys=Object.keys(DATA_FILES);
   const arr=await Promise.all(keys.map(k=>ghRead(DATA_FILES[k])));
   keys.forEach((k,i)=>DB[k]=arr[i]||[]);
-  if(!DB.users.find(u=>u.name==='管理员账号'))DB.users.push({id:1,name:'管理员账号',pass:hashPw('508679mn114514'),avatar:'',level:1000,exp:999000,isAdmin:true});
   if(!DB.works.find(w=>w.title==='欢迎来到我自制的网站'))DB.works.unshift({id:nextId(),type:'post',title:'欢迎来到我自制的网站',content:'欢迎来到我自制的网站，欢迎大家使用',images:[],category:'life',author:'管理员账号',authorId:1,playCount:0,likes:[],coins:[],createdAt:Date.now()});
 }
 
