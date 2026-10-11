@@ -171,7 +171,7 @@ async function ghUploadFile(filename,dataUri){
   await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/refs/heads/${GH_BRANCH}`,{method:'PATCH',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({sha:commitSha})});
   return `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/uploads/${filename}`;
 }
-function hashPw(p){let h=2166136261;for(let i=0;i<p.length;i++){h^=p.charCodeAt(i);h=Math.imul(h,16777615);}return 'x'+h;}
+async function hashPw(p){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 function expForLevel(L){return L*(L+1)*5;}
 function addExp(name,amt){const u=DB.users.find(x=>x.name===name);if(!u)return;u.exp=(u.exp||0)+amt;let l=0;while(l<1000&&u.exp>=expForLevel(l+1))l++;u.level=l;}
 function nextId(){return Date.now()+Math.floor(Math.random()*1000);}
@@ -208,12 +208,12 @@ async function doLogin(isReg){
     let finalName=name;
     while(DB.users.find(u=>u.name===finalName)){finalName=name+Math.floor(Math.random()*900+100);}
     if(finalName!==name)toast('用户名已存在，已自动改为 '+finalName);
-    DB.users.push({id:nextId(),name:finalName,pass:hashPw(pass),avatar:'',level:0,exp:0,isAdmin:false});
+    DB.users.push({id:nextId(),name:finalName,pass:await hashPw(pass),avatar:'',level:0,exp:0,isAdmin:false});
     await ghWrite('data/users.json',DB.users,'注册 '+finalName);
     localStorage.setItem('xi_user',finalName);me=DB.users.find(u=>u.name===finalName);
   } else {
     const u=DB.users.find(x=>x.name===name);
-    if(!u||u.pass!==hashPw(pass))return toast('用户名或密码错误');
+    if(!u||u.pass!==await hashPw(pass))return toast('用户名或密码错误');
     localStorage.setItem('xi_user',name);me=u;
   }
   renderNav();closeModal();toast(isReg?'注册成功，已自动登录':'登录成功');loadHome();
