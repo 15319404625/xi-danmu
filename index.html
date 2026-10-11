@@ -7,6 +7,9 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--pink:#FB7299;--blue:#00AEEC;--glass:rgba(255,255,255,.55)}
+body.dark{background:#1a1a2e;color:#eee}
+body.dark .nav,body.dark .cats,body.dark .card,body.dark .info-row,body.dark .detail,body.dark .post-view{background:rgba(40,40,60,.7);color:#eee;border-color:rgba(255,255,255,.1)}
+body.dark .btn-ghost{background:rgba(255,255,255,.1);color:#eee}
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(251,114,153,.3)}50%{box-shadow:0 0 40px rgba(251,114,153,.6)}}
@@ -129,7 +132,7 @@ th{background:#fafbfc;color:#61666d}
 </head>
 <body>
 <div class="nav">
-  <div class="logo" onclick="go('home')">鸽子视频</div>
+  <div class="logo" onclick="go('home')">鸽子视频</div><button class="btn btn-ghost" onclick="toggleDark()" style="padding:4px 10px">🌙</button>
   <div class="search"><input id="searchInput" placeholder="搜索"><button onclick="doSearch()">搜索</button></div>
   <div class="right">
     <button class="upload-btn" onclick="openUpload()">+</button>
@@ -195,7 +198,9 @@ async function ghUploadFile(filename,dataUri){
 }
 async function encStr(s){try{return btoa(unescape(encodeURIComponent(s))).split('').reverse().map((c,i)=>String.fromCharCode(c.charCodeAt(0)+(i%7))).join('');}catch(e){return s;}}
 function decStr(s){try{let r=s.split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)-(i%7))).join('');return decodeURIComponent(escape(atob(r.split('').reverse().join(''))));}catch(e){return s;}}
-async function hashPw(p){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+async function toggleDark(){document.body.classList.toggle('dark');localStorage.setItem('dark',document.body.classList.contains('dark')?'1':'0');}
+if(localStorage.getItem('dark')==='1')document.body.classList.add('dark');
+function hashPw(p){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 function expForLevel(L){return L*(L+1)*5;}
 function addExp(name,amt){const u=DB.users.find(x=>x.name===name);if(!u)return;u.exp=(u.exp||0)+amt;let l=0;while(l<1000&&u.exp>=expForLevel(l+1))l++;u.level=l;}
 function nextId(){return Date.now()+Math.floor(Math.random()*1000);}
