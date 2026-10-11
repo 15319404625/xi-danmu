@@ -166,7 +166,7 @@ let DB={}, me=null, activeCat='all', curWork=null, selColor='white', curChatWith
 let cacheBust=0, lastAction=0;
 
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',2200);}
-function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));document.getElementById('page-'+p).classList.add('show');window.scrollTo(0,0);if(!location.hash.startsWith('#/work/'))history.replaceState(null,'','#/'+p);}
 
 async function ghRead(path){
@@ -700,7 +700,7 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         }
       }
     }catch(e){}
-  },5000);
+  },900);
 })();
 </script>
 </body>
