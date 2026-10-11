@@ -131,7 +131,7 @@ th{background:#fafbfc;color:#61666d}
 </style>
 </head>
 <body>
-<div class="nav">
+<div style="background:linear-gradient(90deg,#FB7299,#00AEEC);color:#fff;text-align:center;padding:6px;font-size:13px">网站更新啦！请按 Ctrl+Shift+R 强制刷新获取最新版本</div><div class="nav">
   <div class="logo" onclick="go('home')">鸽子视频</div><button class="btn btn-ghost" onclick="toggleDark()" style="padding:4px 10px">🌙</button>
   <div class="search"><input id="searchInput" placeholder="搜索"><button onclick="doSearch()">搜索</button></div>
   <div class="right">
@@ -170,7 +170,7 @@ function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));document.getElementById('page-'+p).classList.add('show');window.scrollTo(0,0);if(!location.hash.startsWith('#/work/'))history.replaceState(null,'','#/'+p);}
 
 async function ghRead(path){
-  try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}?t=${cacheBust++}`,{headers:{Authorization:'token '+TOKEN}});if(!r.ok)return null;const j=await r.json();return JSON.parse(decodeURIComponent(escape(atob(j.content))));}catch(e){return null;}
+  try{const r=await fetch(`https://cdn.jsdelivr.net/gh/${GH_USER}/${GH_REPO}@${GH_BRANCH}/${path}?t=${cacheBust++}`);if(!r.ok)return null;return await r.json();}catch(e){return null;}
 }
 async function ghWrite(path,obj,msg,retry){
   retry=retry||0;
@@ -660,7 +660,7 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         }
       }
     }catch(e){}
-  },500);
+  },3000);
 })();
 </script>
 </body>
