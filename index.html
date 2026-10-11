@@ -137,7 +137,7 @@ th{background:#fafbfc;color:#61666d}
 const ENC_KEY="V2pKb2QxZ3hiM2hYUld4S1lsVnNlRlJGYkV0aE1VcEZZVWR3TTJSSVFsQlZNRVpUWWxWS2VGVXdhSGhrUkVKeVpWWndWMVozUFQwPQ==";
 const GH_USER="15319404625",GH_REPO="xi-danmu",GH_BRANCH="main";
 const TOKEN=atob(atob(atob(ENC_KEY)));
-const DATA_FILES={users:'data/users.json',works:'data/works.json',danmu:'data/danmaku.json',comments:'data/comments.json',follows:'data/follows.json',messages:'data/messages.json',history:'data/history.json',notifs:'data/notifs.json'};
+const DATA_FILES={users:'data/users.json',works:'data/works.json',danmu:'data/danmaku.json',comments:'data/comments.json',follows:'data/follows.json',messages:'data/messages.json',history:'data/history.json',notifs:'data/notifs.json',reports:'data/reports.json'};
 const CATS=[['all','全部'],['animation','动画'],['bangumi','番剧'],['game','游戏'],['knowledge','知识'],['tech','科技'],['music','音乐'],['dance','舞蹈'],['film','影视'],['life','生活'],['guichu','鬼畜'],['fashion','时尚'],['ent','娱乐'],['sports','运动']];
 const COLORS=[['white','#fff','默认白'],['red','#f00','红'],['yellow','#ff0','黄'],['blue','#0080ff','蓝'],['green','#0c0','绿'],['cyan','#0ff','青'],['purple','#a0f','紫'],['rainbow','rainbow','渐变(LV3+)']];
 
@@ -261,15 +261,16 @@ async function openWork(id){
 }
 function renderDetail(w){
   const player=w.type==='video'
-    ?`<div class="player-wrap">${w.video?`<video src="${w.video}" controls autoplay></video>`:'<div style="color:#fff;text-align:center;padding-top:40%">无视频源</div>'}<div class="danmu-layer" id="danmuLayer"></div></div>`
-    :`<div class="post-view"><h1>${esc(w.title)}</h1><div class="text">${esc(w.content)}</div>${(w.images||[]).map(i=>`<img src="${i}">`).join('')}</div>`;
-  document.getElementById('page-detail').innerHTML=`<div class="detail">${player}
+    ?`<div class="player-wrap" oncontextmenu="return false">${w.video?`<video src="${w.video}" controls autoplay controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false"></video>`:'<div style="color:#fff;text-align:center;padding-top:40%">无视频源</div>'}<div class="danmu-layer" id="danmuLayer"></div></div>`
+    :`<div class="post-view"><h1>${esc(w.title)}</h1><div class="text">${esc(w.content)}</div>${(w.images||[]).map(i=>`<img src="${i}" oncontextmenu="return false">`).join('')}</div>`;
+  document.getElementById('page-detail').innerHTML=`<div class="detail" oncontextmenu="${w.type==='video'?'return false':''}">${player}
     <div class="info-row"><div class="avatar">${esc(w.author[0])}</div><div><div style="font-weight:700">${esc(w.author)}</div><div style="font-size:12px;color:#61666d">${w.playCount||0}播放</div></div>
     ${me&&me.name!==w.author?`<button class="btn btn-ghost" id="btnFollow" onclick="toggleFollow('${esc(w.author)}')">${isFollowing(w.author)?'已关注':'+ 关注'}</button>`:''}
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
       <button class="act-btn" id="btnLike" onclick="act('like')">👍 <span id="cLike">${(w.likes||[]).length}</span></button>
       <button class="act-btn" id="btnCoin" onclick="act('coin')">🪙 <span id="cCoin">${(w.coins||[]).length}</span></button>
       <button class="act-btn" onclick="openChatWith('${esc(w.author)}')">💬 私信</button>
+      ${me?`<button class="act-btn" onclick="reportWork()">🚩 举报</button>`:''}
     </div></div>
     ${w.type==='video'?`<div class="danmu-bar"><input id="dmInput" placeholder="发个友善的弹幕" onkeydown="if(event.key==='Enter')sendDanmu()"><div class="colors" id="colorRow"></div></div>`:''}
     <div class="comments"><h3>评论 <span id="cmtCount">${DB.comments.filter(c=>c.workId===w.id).length}</span></h3>
@@ -284,6 +285,20 @@ async function act(a){
   if(a==='coin'&&!w.coins.includes(me.name))w.coins.push(me.name);
   await ghWrite('data/works.json',DB.works,'互动');
   document.getElementById('cLike').textContent=w.likes.length;document.getElementById('cCoin').textContent=w.coins.length;
+}
+function reportWork(){
+  if(!me)return openLogin(false);
+  const reason=prompt('举报原因：');if(!reason)return;
+  DB.reports=DB.reports||[];
+  DB.reports.push({id:nextId(),workId:curWork.id,workTitle:curWork.title,reporter:me.name,reason,status:'pending',time:Date.now()});
+  ghWrite('data/reports.json',DB.reports,'举报').then(()=>toast('举报已提交，管理员会处理'));
+}
+async function resolveReport(id,action){
+  const r=DB.reports.find(x=>x.id===id);if(!r)return;
+  if(action==='remove'){DB.works=DB.works.filter(w=>w.id!==r.workId);await ghWrite('data/works.json',DB.works,'下架被举报作品');}
+  r.status=action==='remove'?'已删除':'已放行';
+  await ghWrite('data/reports.json',DB.reports,'处理举报');
+  toast('已'+r.status);renderAdmin(document.getElementById('adminSearch')?.value||'');
 }
 function isFollowing(name){return (DB.follows.find(f=>f.follower===me?.name)?.following||[]).includes(name);}
 async function toggleFollow(name){
@@ -405,7 +420,9 @@ function renderAdmin(kw){
     <h3>用户</h3>
     <input id="adminSearch" placeholder="搜索用户名..." value="${esc(kw)}" oninput="renderAdmin(this.value)" style="width:100%;padding:8px 12px;border:1px solid #e3e5e7;border-radius:8px;margin-bottom:10px">
     <table><tr><th>用户</th><th>等级</th><th>经验</th><th>操作</th></tr>${users.map(u=>`<tr><td>${esc(u.name)}${u.isAdmin?' 👑':''}</td><td>LV${u.level}</td><td>${u.exp||0}</td><td><button class="mini" onclick="setLv(${u.id},${u.level+1})">升一级</button> <button class="mini" onclick="setLv(${u.id},${u.level-1})">降一级</button> <button class="mini" onclick="setLv(${u.id},${parseInt(prompt('设置等级(0-1000):',u.level))||0})">设等级</button></td></tr>`).join('')}</table>
-    <h3 style="margin-top:16px">弹幕</h3><table><tr><th>用户</th><th>内容</th><th>操作</th></tr>${DB.danmu.map(d=>`<tr><td>${esc(d.user)}</td><td>${esc(d.text)}</td><td><button class="mini danger" onclick="delDm(${d.id})">删</button></td></tr>`).join('')}</table>`;
+    <h3 style="margin-top:16px">弹幕</h3><table><tr><th>用户</th><th>内容</th><th>操作</th></tr>${DB.danmu.map(d=>`<tr><td>${esc(d.user)}</td><td>${esc(d.text)}</td><td><button class="mini danger" onclick="delDm(${d.id})">删</button></td></tr>`).join('')}</table>
+    <h3 style="margin-top:16px">举报 <span style="color:var(--pink)">${(DB.reports||[]).filter(r=>r.status==='pending').length}待处理</span></h3>
+    <table><tr><th>作品</th><th>举报人</th><th>原因</th><th>状态</th><th>操作</th></tr>${(DB.reports||[]).map(r=>`<tr><td>${esc(r.workTitle)}</td><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${r.status}</td><td>${r.status==='pending'?`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="resolveReport(${r.id},'remove')">下架删除</button>`:''}</td></tr>`).join('')||'<tr><td colspan=5>暂无举报</td></tr>'}</table>`;
 }
 async function setLv(id,lv){const u=DB.users.find(x=>x.id===id);u.level=Math.max(0,Math.min(1000,lv));await ghWrite('data/users.json',DB.users,'调等级');renderAdmin(document.getElementById('adminSearch')?.value||'');toast('已调整为LV'+u.level);}
 async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('data/danmaku.json',DB.danmu,'删弹幕');renderAdmin(document.getElementById('adminSearch')?.value||'');}
@@ -413,6 +430,8 @@ async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('d
 function openModal(h){document.getElementById('modalBox').innerHTML=h;document.getElementById('mask').classList.add('show');}
 function closeModal(){document.getElementById('mask').classList.remove('show');}
 document.getElementById('mask').onclick=e=>{if(e.target.id==='mask')closeModal();};
+document.addEventListener('contextmenu',e=>{if(e.target.closest('video'))e.preventDefault();});
+document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.preventDefault();});
 
 (async()=>{await loadDB();const n=localStorage.getItem('xi_user');me=n?DB.users.find(u=>u.name===n):null;renderNav();loadHome();})();
 </script>
