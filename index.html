@@ -129,6 +129,7 @@ th{background:#fafbfc;color:#61666d}
 <div class="page" id="page-detail"></div>
 <div class="page" id="page-profile"></div>
 <div class="page" id="page-admin"></div>
+<div class="page" id="page-board"></div>
 <div class="page" id="page-messages"></div>
 
 <div class="mask" id="mask"><div class="modal" id="modalBox"></div></div>
@@ -521,6 +522,24 @@ function openHistory(){if(!me)return openLogin(false);go('profile');
   document.getElementById('page-profile').innerHTML=`<h2 style="margin:10px 0">观看历史</h2><div class="grid">${list.length?list.map(workCard).join(''):'<div class="empty">暂无</div>'}</div>`;
 }
 
+function renderBoard(){
+  const works=DB.works.slice();
+  const tab=window._boardTab||'hot';
+  const sortFn={
+    hot:(a,b)=>(b.likes||[]).length-(a.likes||[]).length,
+    view:(a,b)=>(b.playCount||0)-(a.playCount||0),
+    coin:(a,b)=>(b.coins||[]).length-(a.coins||[]).length,
+    fav:(a,b)=>(b.favs||[]).length-(a.favs||[]).length
+  }[tab];
+  works.sort(sortFn);
+  const names={hot:'点赞榜',view:'播放榜',coin:'投币榜',fav:'收藏榜'};
+  document.getElementById('page-board').innerHTML=`<h2 style="margin:10px 0">排行榜</h2>
+    <div class="tabs2">${Object.entries(names).map(([k,v])=>`<span class="${tab===k?'active':''}" onclick="window._boardTab='${k}';renderBoard()">${v}</span>`).join('')}</div>
+    <div class="grid">${works.slice(0,20).map((w,i)=>`<div class="card" style="position:relative" onclick="openWork(${w.id})">
+      <div style="position:absolute;top:8px;left:8px;z-index:2;background:${i<3?'var(--pink)':'#999'};color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">${i+1}</div>
+      <div class="thumb">${w.cover?`<img src="${w.cover}">`:(w.type==='video'?'<div style="font-size:40px">▶</div>':'<div style="font-size:40px">文</div>')}<div class="stats"><span>▶ ${w.playCount||0}</span><span>👍${(w.likes||[]).length}</span></div></div>
+      <div class="body"><div class="title">${esc(w.title)}</div><div class="meta">${esc(w.author)}</div></div></div>`).join('')||'<div class="empty">暂无数据</div>'}</div>`;
+}
 async function openAdmin(){
   if(!me||!me.isAdmin)return toast('仅管理员');go('admin');
   renderAdmin('');
@@ -573,7 +592,7 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
     if(ms){const q=decodeURIComponent(ms[1]);document.getElementById('searchInput').value=q;doSearch(q);}
     else{
       const page=h.replace('#/','')||'home';
-      const valid=['home','messages','profile','admin','history','upload'];
+      const valid=['home','messages','profile','admin','history','upload','board'];
       if(valid.includes(page))go(page);
     }
   }
