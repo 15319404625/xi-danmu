@@ -195,7 +195,7 @@ async function ghUploadFile(filename,dataUri){
 }
 async function encStr(s){try{return btoa(unescape(encodeURIComponent(s))).split('').reverse().map((c,i)=>String.fromCharCode(c.charCodeAt(0)+(i%7))).join('');}catch(e){return s;}}
 function decStr(s){try{let r=s.split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)-(i%7))).join('');return decodeURIComponent(escape(atob(r.split('').reverse().join(''))));}catch(e){return s;}}
-function hashPw(p){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+async function hashPw(p){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 function expForLevel(L){return L*(L+1)*5;}
 function addExp(name,amt){const u=DB.users.find(x=>x.name===name);if(!u)return;u.exp=(u.exp||0)+amt;let l=0;while(l<1000&&u.exp>=expForLevel(l+1))l++;u.level=l;}
 function nextId(){return Date.now()+Math.floor(Math.random()*1000);}
