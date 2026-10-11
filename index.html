@@ -104,6 +104,7 @@ th{background:#fafbfc;color:#61666d}
 .chat-input input{flex:1;border:1px solid #e3e5e7;border-radius:8px;padding:8px 12px}
 .notif-item{padding:12px 16px;background:#fff;border-radius:10px;margin-bottom:8px;display:flex;gap:10px;align-items:center;cursor:pointer}
 .notif-item.unread{background:#fff0f5}
+.badge{position:absolute;top:-4px;right:-4px;background:var(--pink);color:#fff;font-size:11px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
 .tabs2{display:flex;gap:18px;border-bottom:1px solid #e3e5e7;margin-bottom:16px}
 .tabs2 span{padding:10px 4px;cursor:pointer;color:#61666d}
 .tabs2 span.active{color:var(--pink);border-bottom:2px solid var(--pink);font-weight:700}
@@ -226,7 +227,13 @@ function workCard(w){
   return `<div class="card" onclick="openWork(${w.id})"><div class="thumb">${thumb}<div class="stats"><span>▶ ${w.playCount||0}</span><span>💬 ${dmN}</span></div></div><div class="body"><div class="title"><span class="tag-type">${w.type==='video'?'视频':'图文'}</span>${esc(w.title)}</div><div class="meta">${esc(w.author)} · ${(w.likes||[]).length}赞 · ${cmN}评</div></div></div>`;
 }
 async function loadHome(){loadCats();let list=[...DB.works].sort((a,b)=>b.createdAt-a.createdAt);if(activeCat!=='all')list=list.filter(w=>w.category===activeCat);document.getElementById('homeGrid').innerHTML=list.length?list.map(workCard).join(''):'<div class="empty">暂无内容</div>';}
-function doSearch(){toast('搜索：'+document.getElementById('searchInput').value);}
+function doSearch(){
+  const q=document.getElementById('searchInput').value.trim().toLowerCase();
+  if(!q)return loadHome();
+  go('home');
+  const list=DB.works.filter(w=>w.title.toLowerCase().includes(q)||w.author.toLowerCase().includes(q)||(w.content||'').toLowerCase().includes(q));
+  document.getElementById('homeGrid').innerHTML=list.length?list.map(workCard).join(''):'<div class="empty">没有找到相关内容</div>';
+}
 
 function openUpload(){
   if(!me)return openLogin(false);
@@ -253,11 +260,18 @@ async function doUpload(){
 }
 
 async function openWork(id){
-  const w=DB.works.find(x=>x.id===id);if(!w)return;
-  w.playCount=(w.playCount||0)+1;
-  DB.history=DB.history.filter(h=>!(h.user===me?.name&&h.workId===id));
-  DB.history.unshift({user:me?me.name:'游客',workId:id,time:Date.now()});
-  curWork=w;renderDetail(w);go('detail');loadDanmu(w.id);loadComments(w.id);
+  try{
+    const w=DB.works.find(x=>x.id===id);if(!w){toast('作品不存在或已被删除');return;}
+    w.playCount=(w.playCount||0)+1;
+    curWork=w;renderDetail(w);go('detail');loadDanmu(w.id);loadComments(w.id);
+    // save play count and history in background
+    ghWrite('data/works.json',DB.works,'播放+1').catch(()=>{});
+    if(me){
+      DB.history=DB.history.filter(h=>!(h.user===me.name&&h.workId===id));
+      DB.history.unshift({user:me.name,workId:id,time:Date.now()});
+      ghWrite('data/history.json',DB.history,'历史').catch(()=>{});
+    }
+  }catch(e){toast('打开失败: '+e.message);}
 }
 function renderDetail(w){
   const player=w.type==='video'
@@ -274,7 +288,8 @@ function renderDetail(w){
     </div></div>
     ${w.type==='video'?`<div class="danmu-bar"><input id="dmInput" placeholder="发个友善的弹幕" onkeydown="if(event.key==='Enter')sendDanmu()"><div class="colors" id="colorRow"></div></div>`:''}
     <div class="comments"><h3>评论 <span id="cmtCount">${DB.comments.filter(c=>c.workId===w.id).length}</span></h3>
-      <div class="cmt-input"><input id="cmtInput" placeholder="发一条友善的评论" onkeydown="if(event.key==='Enter')sendComment(null)"><button class="btn btn-pink" onclick="sendComment(null)">评论</button></div><div id="cmtList"></div></div></div>`;
+      <div class="cmt-input"><input id="cmtInput" placeholder="发一条友善的评论" onkeydown="if(event.key==='Enter')sendComment(null)"><button class="btn btn-pink" onclick="sendComment(null)">评论</button></div><div id="cmtList"></div></div>
+    <div style="margin-top:20px"><h3>相关推荐</h3><div class="grid" style="padding:10px 0">${DB.works.filter(x=>x.id!==w.id&&x.category===w.category).slice(0,6).map(workCard).join('')||'<div class="empty">暂无相关</div>'}</div></div></div>`;
   renderColors();
 }
 function renderColors(){document.getElementById('colorRow').innerHTML='<span style="font-size:13px">颜色:</span>'+COLORS.map(([v,hex])=>{const locked=v==='rainbow'&&(!me||me.level<3);return `<div class="swatch ${v===selColor?'sel':''} ${locked?'locked':''}" title="${v}" style="background:${hex==='rainbow'?'linear-gradient(90deg,red,yellow,green,cyan,blue,purple)':hex}" onclick="pickColor('${v}',${locked})"></div>`;}).join('');}
@@ -316,9 +331,10 @@ function spawnDanmu(d){
   const el=document.createElement('div');el.className='danmu-item'+(d.color==='rainbow'?' rainbow-text':'');
   if(d.color!=='rainbow'&&d.color!=='white')el.style.color=d.color;
   el.innerHTML=`${d.avatar?`<img src="${d.avatar}">`:''}<span>${esc(d.user)}: ${esc(d.text)}</span>`;
-  el.style.top=(5+Math.random()*80)+'%';el.style.right='-40%';layer.appendChild(el);
+  el.style.top=(5+Math.random()*80)+'%';el.style.right='0';layer.appendChild(el);
+  const layerW=layer.offsetWidth||800;
   const dur=9000+Math.random()*4000,start=performance.now();
-  (function tick(now){const p=(now-start)/dur;if(p>=1)return el.remove();el.style.transform=`translateX(${-p*140}vw)`;requestAnimationFrame(tick);})(start);
+  (function tick(now){const p=(now-start)/dur;if(p>=1)return el.remove();el.style.transform=`translateX(${-p*(layerW+el.offsetWidth+50)}px)`;requestAnimationFrame(tick);})(start);
 }
 async function sendDanmu(){
   try{
