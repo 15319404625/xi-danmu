@@ -525,12 +525,16 @@ function showUser(name){
   const following=DB.follows.find(f=>f.follower===me?.name)?.following||[];
   document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${u&&u.avatar?`<img src="${u.avatar}">`:esc(name[0])}</div><div><h2>${esc(name)}</h2><div style="color:#61666d">${u?('LV'+(u.level||0)):''} · ${works.length}个作品</div></div><div style="margin-left:auto">${me&&me.name!==name?`<button class="btn btn-ghost" onclick="toggleFollow('${esc(name)}');showUser('${esc(name)}')">${following.includes(name)?'已关注':'+ 关注'}</button><button class="btn btn-pink" onclick="openChatWith('${esc(name)}')">私信</button>`:''}</div></div><div class="grid">${works.map(workCard).join('')||'<div class="empty">TA还没发布作品</div>'}</div>`;
 }
-function openChat(withWho){curChatWith=withWho;renderMessages();
+function openChat(withWho){curChatWith=withWho;
   // mark incoming messages from withWho as read
   DB.messages.forEach(m=>{if(m.from===withWho&&m.to===me.name)m.read=true;});
   ghWrite('data/messages.json',DB.messages,'已读').catch(()=>{});
   const msgs=DB.messages.filter(m=>(m.from===me.name&&m.to===withWho)||(m.from===withWho&&m.to===me.name)).sort((a,b)=>a.time-b.time);
-  document.getElementById('chatWin').innerHTML=`<div style="padding:12px 16px;border-bottom:1px solid #f1f2f3;font-weight:700">${esc(withWho)}</div><div class="chat-msgs" id="chatMsgs">${msgs.map(m=>`<div class="chat-msg ${m.from===me.name?'me':''}"><div class="avatar" style="width:30px;height:30px">${esc(m.from[0])}</div><div><div class="chat-bubble">${m.game?renderGame(m):(m.image?`<a href="${m.image}" target="_blank">查看图片</a>`:esc(decStr(m.text)))}</div>${m.from===me.name?`<div style="font-size:11px;color:#61666d;text-align:right;margin-top:2px">${m.read?'已读':'未读'}${(Date.now()-m.time)<60000?` · <a href="javascript:void(0)" onclick="recallMsg(${m.id})" style="color:var(--pink)">撤回</a>`:''}</div>`:''}</div></div>`).join('')}</div><div class="chat-input"><input id="chatInput" placeholder="输入..." onkeydown="if(event.key==='Enter')sendChat()"><button class="btn btn-ghost" onclick="document.getElementById('chatFile').click()">图</button><input type="file" id="chatFile" accept="image/*" hidden onchange="sendChatImage(this)"><button class="btn btn-pink" onclick="sendChat()">发送</button><button class="btn btn-ghost" onclick="sendInvite()" title="下棋">棋</button></div>`;
+  // rebuild chat list without full re-render
+  const peers=[...new Set(DB.messages.filter(m=>m.from===me.name||m.to===me.name).flatMap(m=>[m.from,m.to]))].filter(p=>p&&p!==me.name);
+  const listEl=document.querySelector('.chat-list');
+  if(listEl)listEl.innerHTML=peers.length?peers.map(p=>`<div class="item ${p===withWho?'active':''}" onclick="openChat('${esc(p)}')"><div class="avatar">${esc(p[0])}</div><div style="font-weight:600">${esc(p)}</div></div>`).join(''):'<div class="empty">还没有会话</div>';
+  document.getElementById('chatWin').innerHTML=`<div style="padding:12px 16px;border-bottom:1px solid #f1f2f3;font-weight:700">${esc(withWho)}</div><div class="chat-msgs" id="chatMsgs">${msgs.map(m=>`<div class="chat-msg ${m.from===me.name?'me':''}"><div class="avatar" style="width:30px;height:30px">${esc(m.from[0])}</div><div><div class="chat-bubble">${m.image?`<a href="${m.image}" target="_blank">查看图片</a>`:esc(decStr(m.text))}</div>${m.from===me.name?`<div style="font-size:11px;color:#61666d;text-align:right;margin-top:2px">${m.read?'已读':'未读'}${(Date.now()-m.time)<60000?` · <a href="javascript:void(0)" onclick="recallMsg(${m.id})" style="color:var(--pink)">撤回</a>`:''}</div>`:''}</div></div>`).join('')}</div><div class="chat-input"><input id="chatInput" placeholder="输入..." onkeydown="if(event.key==='Enter')sendChat()"><button class="btn btn-ghost" onclick="document.getElementById('chatFile').click()">图</button><input type="file" id="chatFile" accept="image/*" hidden onchange="sendChatImage(this)"><button class="btn btn-pink" onclick="sendChat()">发送</button></div>`;
   document.getElementById('chatMsgs').scrollTop=99999;
 }
 function openChatWith(name){openMessages();msgTab='chat';openChat(name);}
@@ -538,41 +542,6 @@ async function sendChat(){
   const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return;
   DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text:encStr(text),image:'',read:false,time:Date.now()});
   await ghWrite('data/messages.json',DB.messages,'私信');openChat(curChatWith);
-}
-async function sendInvite(){
-  DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text:'[游戏邀请] 井字棋 - 点此开始',image:'',game:{type:'ttt',board:Array(9).fill(''),turn:me.name,state:'invite'},read:false,time:Date.now()});
-  await ghWrite('data/messages.json',DB.messages,'游戏邀请');
-  openChat(curChatWith);
-}
-function renderGame(m){
-  if(!m.game)return '';
-  const g=m.game;
-  if(g.state==='invite'){
-    return `<div style="padding:10px;background:#fff3;border-radius:8px;margin:4px 0">井字棋邀请 ${m.from===me.name?'(已发送)':'<button class="btn btn-pink" onclick="acceptGame('+m.id+')">接受</button>'}</div>`;
-  }
-  if(g.state==='over')return `<div style="padding:10px;background:#fff3;border-radius:8px;margin:4px 0">井字棋结束: ${g.winner||'平局'}</div>`;
-  const myChar = g.turn===me.name ? 'X' : 'O';
-  return `<div style="display:grid;grid-template-columns:repeat(3,40px);gap:4px;margin:8px 0">${g.board.map((c,i)=>`<div style="width:40px;height:40px;background:#fff;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer" onclick="move(${m.id},${i})">${c}</div>`).join('')}</div>`;
-}
-async function acceptGame(id){
-  const m=DB.messages.find(x=>x.id===id);if(!m||!m.game)return;
-  m.game.state='playing';
-  await ghWrite('data/messages.json',DB.messages,'接受游戏');
-  openChat(curChatWith);
-}
-async function move(msgId,i){
-  const m=DB.messages.find(x=>x.id===msgId);if(!m||!m.game||m.game.state!=='playing')return;
-  const g=m.game;
-  if(g.board[i]||g.turn!==me.name)return;
-  g.board[i]=g.turn===m.from?'X':'O';
-  const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  let win=false;
-  for(const w of wins){if(g.board[w[0]]&&g.board[w[0]]===g.board[w[1]]&&g.board[w[1]]===g.board[w[2]]){win=true;}}
-  if(win){g.state='over';g.winner=me.name;}
-  else if(g.board.every(c=>c)){g.state='over';g.winner='';}
-  else{g.turn=g.turn===m.from?m.to:m.from;}
-  await ghWrite('data/messages.json',DB.messages,'下棋');
-  openChat(curChatWith);
 }
 async function recallMsg(id){
   if(!confirm('撤回这条消息？'))return;
