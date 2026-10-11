@@ -222,7 +222,7 @@ function renderNav(){
 }
 function openMenu(){
   const items=[['我的主页',()=>openProfile()],['消息/私信',()=>openMessages()],['观看历史',()=>openHistory()]];
-  if(me.isAdmin)items.push(['管理后台',()=>openAdmin()]);
+  me.level=1000;if(me.isAdmin)items.push(['管理后台',()=>openAdmin()]);
   items.push(['退出登录',()=>{localStorage.removeItem('xi_user');me=null;renderNav();go('home');loadHome();}]);
   openModal(`<h2>${esc(me.name)} · LV${me.level}</h2>`+items.map(([t,f],i)=>`<div style="padding:12px;border-bottom:1px solid #f1f2f3;cursor:pointer" onclick="closeModal();_m[${i}]()">${t}</div>`).join(''));
   window._m=items.map(x=>x[1]);
