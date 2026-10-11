@@ -206,14 +206,18 @@ async function doLogin(isReg){
   const name=document.getElementById('auName').value.trim(),pass=document.getElementById('auPass').value;
   if(!name||!pass)return toast('请填写完整');
   if(isReg){
-    if(DB.users.find(u=>u.name===name))return toast('用户名已存在');
-    DB.users.push({id:nextId(),name,pass:hashPw(pass),avatar:'',level:0,exp:0,isAdmin:false});
-    await ghWrite('data/users.json',DB.users,'注册 '+name);
+    let finalName=name;
+    while(DB.users.find(u=>u.name===finalName)){finalName=name+Math.floor(Math.random()*900+100);}
+    if(finalName!==name)toast('用户名已存在，已自动改为 '+finalName);
+    DB.users.push({id:nextId(),name:finalName,pass:hashPw(pass),avatar:'',level:0,exp:0,isAdmin:false});
+    await ghWrite('data/users.json',DB.users,'注册 '+finalName);
+    localStorage.setItem('xi_user',finalName);me=DB.users.find(u=>u.name===finalName);
   } else {
     const u=DB.users.find(x=>x.name===name);
     if(!u||u.pass!==hashPw(pass))return toast('用户名或密码错误');
+    localStorage.setItem('xi_user',name);me=u;
   }
-  localStorage.setItem('xi_user',name);me=DB.users.find(u=>u.name===name);renderNav();closeModal();toast(isReg?'注册成功':'登录成功');loadHome();
+  renderNav();closeModal();toast(isReg?'注册成功，已自动登录':'登录成功');loadHome();
 }
 
 function loadCats(){document.getElementById('cats').innerHTML=CATS.map(([v,n])=>`<span class="${v===activeCat?'active':''}" onclick="activeCat='${v}';loadCats();loadHome()">${n}</span>`).join('');}
@@ -268,9 +272,9 @@ function renderDetail(w){
       <button class="act-btn" id="btnCoin" onclick="act('coin')">🪙 <span id="cCoin">${(w.coins||[]).length}</span></button>
       <button class="act-btn" onclick="openChatWith('${esc(w.author)}')">💬 私信</button>
     </div></div>
-    <div class="danmu-bar"><input id="dmInput" placeholder="发个友善的弹幕" onkeydown="if(event.key==='Enter')sendDanmu()"><div class="colors" id="colorRow"></div></div>
+    ${w.type==='video'?`<div class="danmu-bar"><input id="dmInput" placeholder="发个友善的弹幕" onkeydown="if(event.key==='Enter')sendDanmu()"><div class="colors" id="colorRow"></div></div>`:''}
     <div class="comments"><h3>评论 <span id="cmtCount">${DB.comments.filter(c=>c.workId===w.id).length}</span></h3>
-      <div class="cmt-input"><input id="cmtInput" placeholder="发一条友善的评论"><button class="btn btn-pink" onclick="sendComment(null)">评论</button></div><div id="cmtList"></div></div></div>`;
+      <div class="cmt-input"><input id="cmtInput" placeholder="发一条友善的评论" onkeydown="if(event.key==='Enter')sendComment(null)"><button class="btn btn-pink" onclick="sendComment(null)">评论</button></div><div id="cmtList"></div></div></div>`;
   renderColors();
 }
 function renderColors(){document.getElementById('colorRow').innerHTML='<span style="font-size:13px">颜色:</span>'+COLORS.map(([v,hex])=>{const locked=v==='rainbow'&&(!me||me.level<3);return `<div class="swatch ${v===selColor?'sel':''} ${locked?'locked':''}" title="${v}" style="background:${hex==='rainbow'?'linear-gradient(90deg,red,yellow,green,cyan,blue,purple)':hex}" onclick="pickColor('${v}',${locked})"></div>`;}).join('');}
@@ -303,12 +307,15 @@ function spawnDanmu(d){
   (function tick(now){const p=(now-start)/dur;if(p>=1)return el.remove();el.style.transform=`translateX(${-p*140}vw)`;requestAnimationFrame(tick);})(start);
 }
 async function sendDanmu(){
-  const inp=document.getElementById('dmInput');const text=inp.value.trim();if(!text)return;
-  if(selColor==='rainbow'&&(!me||me.level<3))return toast('渐变需要LV3');
-  DB.danmu.push({id:nextId(),workId:curWork.id,user:me?me.name:'游客',avatar:me?.avatar||'',text,color:selColor,time:Date.now()});
-  await ghWrite('data/danmaku.json',DB.danmu,'弹幕');
-  if(me){addExp(me.name,2);await ghWrite('data/users.json',DB.users,'经验');}
-  inp.value='';loadDanmu(curWork.id);
+  try{
+    const inp=document.getElementById('dmInput');const text=inp.value.trim();if(!text)return;
+    if(!me)return openLogin(false);
+    if(selColor==='rainbow'&&(!me||me.level<3))return toast('渐变需要LV3');
+    DB.danmu.push({id:nextId(),workId:curWork.id,user:me.name,avatar:me.avatar||'',text,color:selColor,time:Date.now()});
+    await ghWrite('data/danmaku.json',DB.danmu,'弹幕');
+    addExp(me.name,2);await ghWrite('data/users.json',DB.users,'经验');
+    inp.value='';loadDanmu(curWork.id);toast('弹幕已发送');
+  }catch(e){toast('发送失败: '+e.message);}
 }
 
 function loadComments(wid){
@@ -322,16 +329,17 @@ function cmtHtml(c,list){
   return `<div class="cmt"><div class="avatar" style="width:34px;height:34px">${c.avatar?`<img src="${c.avatar}">`:esc(c.user[0])}</div><div class="body"><div class="name">${esc(c.user)}</div><div class="txt">${esc(c.text)}</div><div class="foot"><span onclick="likeCmt(${c.id})">❤️ ${(c.likes||[]).length}</span><span onclick="var b=document.getElementById('rb-${c.id}');b.style.display=b.style.display==='none'?'block':'none'">回复</span></div><div class="reply-box" id="rb-${c.id}" style="display:none"><input placeholder="回复" onkeydown="if(event.key==='Enter')sendComment(${c.id},this)"></div><div class="replies">${reps.map(r=>`<div class="cmt" style="border:none;padding:6px 0"><div class="avatar" style="width:28px;height:28px">${r.avatar?`<img src="${r.avatar}">`:esc(r.user[0])}</div><div class="body"><div class="name">${esc(r.user)}</div><div class="txt">${esc(r.text)}</div><div class="foot"><span onclick="likeCmt(${r.id})">❤️ ${(r.likes||[]).length}</span><span onclick="var b=document.getElementById('rb-${r.id}');b.style.display=b.style.display==='none'?'block':'none'">回复</span></div><div class="reply-box" id="rb-${r.id}" style="display:none"><input placeholder="回复" onkeydown="if(event.key==='Enter')sendComment(${r.id},this)"></div></div></div>`).join('')}</div></div></div>`;
 }
 async function sendComment(parentId,inputEl){
-  if(!me)return openLogin(false);
-  const inp=inputEl||document.getElementById('cmtInput');const text=inp.value.trim();if(!text)return;
-  const c={id:nextId(),workId:curWork.id,parentId:parentId||null,user:me.name,avatar:me.avatar||'',text,likes:[],time:Date.now()};
-  DB.comments.push(c);
-  // notify: if reply to a comment, notify the comment author
-  if(parentId){const parent=DB.comments.find(x=>x.id===parentId);if(parent)notify(parent.user,me.name+' 回复了你的评论: '+text,curWork.id);}
-  else notify(curWork.author,me.name+' 评论了你的作品《'+curWork.title+'》',curWork.id);
-  await ghWrite('data/comments.json',DB.comments,'评论');await ghWrite('data/notifs.json',DB.notifs,'通知');
-  addExp(me.name,3);await ghWrite('data/users.json',DB.users,'经验');
-  inp.value='';loadComments(curWork.id);
+  try{
+    if(!me)return openLogin(false);
+    const inp=inputEl||document.getElementById('cmtInput');const text=inp.value.trim();if(!text)return;
+    const c={id:nextId(),workId:curWork.id,parentId:parentId||null,user:me.name,avatar:me.avatar||'',text,likes:[],time:Date.now()};
+    DB.comments.push(c);
+    if(parentId){const parent=DB.comments.find(x=>x.id===parentId);if(parent)notify(parent.user,me.name+' 回复了你的评论: '+text,curWork.id);}
+    else notify(curWork.author,me.name+' 评论了你的作品《'+curWork.title+'》',curWork.id);
+    await ghWrite('data/comments.json',DB.comments,'评论');await ghWrite('data/notifs.json',DB.notifs,'通知');
+    addExp(me.name,3);await ghWrite('data/users.json',DB.users,'经验');
+    inp.value='';loadComments(curWork.id);toast('评论成功');
+  }catch(e){toast('评论失败: '+e.message);}
 }
 async function likeCmt(id){
   if(!me)return openLogin(false);
