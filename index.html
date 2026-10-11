@@ -6,7 +6,22 @@
 <title>鸽子视频观看站</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--pink:#FB7299;--blue:#00AEEC}
+:root{--pink:#FB7299;--blue:#00AEEC;--glass:rgba(255,255,255,.55)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(251,114,153,.3)}50%{box-shadow:0 0 40px rgba(251,114,153,.6)}}
+.page.show{animation:fadeUp .35s ease-out}
+.card{animation:fadeUp .4s ease-out both}
+.btn:active{transform:scale(.96)}
+.btn{transition:all .2s}
+.card .thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.3),transparent 50%);opacity:0;transition:opacity .2s}
+.card:hover .thumb::after{opacity:1}
+input,textarea,select{transition:box-shadow .2s}
+input:focus,textarea:focus{box-shadow:0 0 0 3px rgba(251,114,153,.15)}
+.upload-btn{transition:transform .2s,box-shadow .2s}
+.upload-btn:hover{transform:scale(1.1);box-shadow:0 0 20px rgba(251,114,153,.5)}
+.cats span{transition:all .2s}
+.cats span:hover{color:var(--pink)}
 body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(135deg,#ffeef5 0%,#e8f4ff 50%,#f0e8ff 100%);background-attachment:fixed;color:#18191c;min-height:100vh}
 .glass{background:rgba(255,255,255,.55);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(255,255,255,.6);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,.1)}
 a{color:inherit;text-decoration:none}
@@ -30,7 +45,7 @@ input,textarea,select{font-family:inherit;outline:none}
 .banner{margin:16px 24px;border-radius:12px;background:linear-gradient(120deg,#FB7299,#00AEEC);color:#fff;padding:32px}
 .banner h1{font-size:30px;margin-bottom:6px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;padding:16px 24px}
-.card{background:#fff;border-radius:10px;overflow:hidden;cursor:pointer;transition:transform .15s}
+.card{background:rgba(255,255,255,.6);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.6);border-radius:16px;overflow:hidden;cursor:pointer;transition:transform .25s,box-shadow .25s;box-shadow:0 4px 20px rgba(31,38,135,.08)}
 .card:hover{transform:translateY(-3px)}
 .card .thumb{position:relative;aspect-ratio:16/9;background:#000;overflow:hidden}
 .card .thumb img,.card .thumb video{width:100%;height:100%;object-fit:cover}
@@ -49,11 +64,11 @@ input,textarea,select{font-family:inherit;outline:none}
 .danmu-item img{width:26px;height:26px;border-radius:50%;object-fit:cover;border:1px solid #fff}
 .rainbow-text{background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:rain 3s linear infinite}
 @keyframes rain{to{background-position:200% center}}
-.post-view{background:#fff;border-radius:12px;padding:30px;min-height:200px}
+.post-view{background:rgba(255,255,255,.6);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.6);border-radius:16px;padding:30px;min-height:200px;box-shadow:0 8px 32px rgba(31,38,135,.1)}
 .post-view h1{font-size:24px;margin-bottom:16px}
 .post-view .text{font-size:16px;line-height:1.8;white-space:pre-wrap}
 .post-view img{max-width:100%;border-radius:8px;margin-top:12px}
-.info-row{display:flex;align-items:center;gap:14px;background:#fff;border-radius:12px;padding:14px 18px;margin-top:14px;flex-wrap:wrap}
+.info-row{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.55);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.6);border-radius:16px;padding:14px 18px;margin-top:14px;flex-wrap:wrap}
 .act-btn{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:18px;background:#f1f2f3;font-size:14px;color:#61666d}
 .danmu-bar{background:#fff;border-radius:12px;padding:12px 16px;margin-top:12px}
 .danmu-bar input{width:100%;border:1px solid #e3e5e7;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:8px}
