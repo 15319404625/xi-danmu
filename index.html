@@ -335,6 +335,8 @@ function renderDetail(w){
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
       <button class="act-btn" id="btnLike" onclick="act('like')">👍 <span id="cLike">${(w.likes||[]).length}</span></button>
       <button class="act-btn" id="btnCoin" onclick="act('coin')">🪙 <span id="cCoin">${(w.coins||[]).length}</span></button>
+      <button class="act-btn" id="btnFav" onclick="act('fav')">⭐ <span id="cFav">${(w.favs||[]).length}</span></button>
+      <button class="act-btn" onclick="navigator.clipboard.writeText(location.href).then(()=>toast('链接已复制'))">↗ 分享</button>
       <button class="act-btn" onclick="openChatWith('${esc(w.author)}')">💬 私信</button>
       ${me?`<button class="act-btn" onclick="reportWork()">🚩 举报</button>`:''}
     </div></div>
@@ -350,8 +352,9 @@ async function act(a){
   if(!me)return openLogin(false);const w=curWork;
   if(a==='like'){const i=w.likes.indexOf(me.name);if(i>=0)w.likes.splice(i,1);else{w.likes.push(me.name);notify(w.author,me.name+' 赞了你的作品《'+w.title+'》',w.id);}}
   if(a==='coin'&&!w.coins.includes(me.name))w.coins.push(me.name);
+  if(a==='fav'){const i=w.favs.indexOf(me.name);if(i>=0)w.favs.splice(i,1);else w.favs.push(me.name);toast(w.favs.includes(me.name)?'已收藏':'已取消收藏');}
   await ghWrite('data/works.json',DB.works,'互动');
-  document.getElementById('cLike').textContent=w.likes.length;document.getElementById('cCoin').textContent=w.coins.length;
+  document.getElementById('cLike').textContent=w.likes.length;document.getElementById('cCoin').textContent=w.coins.length;const f=document.getElementById('cFav');if(f)f.textContent=w.favs.length;
 }
 function reportWork(){
   if(!me)return openLogin(false);
