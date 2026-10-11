@@ -560,6 +560,24 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
   // hash routing: open work from URL
   const h=location.hash;const m=h.match(/#\/work\/(\d+)/);
   if(m){const id=parseInt(m[1]);const w=DB.works.find(x=>x.id===id);if(w)openWork(id,true);}
+  // auto-refresh data every 5s without reloading page
+  setInterval(async()=>{
+    try{
+      for(const k of Object.keys(DATA_FILES)){
+        const fresh=await ghRead(DATA_FILES[k]);
+        if(fresh)DB[k]=fresh;
+      }
+      // re-render current view lightly
+      if(curWork){
+        const w=DB.works.find(x=>x.id===curWork.id);
+        if(w){
+          curPlayCount=w.playCount;curLikes=w.likes;curCoins=w.coins;curFavs=w.favs;
+          const l=document.getElementById('cLike');if(l)l.textContent=(w.likes||[]).length;
+          const c=document.getElementById('cCoin');if(c)c.textContent=(w.coins||[]).length;
+        }
+      }
+    }catch(e){}
+  },5000);
 })();
 </script>
 </body>
