@@ -530,7 +530,7 @@ function openChat(withWho){curChatWith=withWho;renderMessages();
   DB.messages.forEach(m=>{if(m.from===withWho&&m.to===me.name)m.read=true;});
   ghWrite('data/messages.json',DB.messages,'已读').catch(()=>{});
   const msgs=DB.messages.filter(m=>(m.from===me.name&&m.to===withWho)||(m.from===withWho&&m.to===me.name)).sort((a,b)=>a.time-b.time);
-  document.getElementById('chatWin').innerHTML=`<div style="padding:12px 16px;border-bottom:1px solid #f1f2f3;font-weight:700">${esc(withWho)}</div><div class="chat-msgs" id="chatMsgs">${msgs.map(m=>`<div class="chat-msg ${m.from===me.name?'me':''}"><div class="avatar" style="width:30px;height:30px">${esc(m.from[0])}</div><div><div class="chat-bubble">${m.image?`<img src="${m.image}" style="cursor:zoom-in" onclick="window.open(this.src)" download>`:esc(decStr(m.text))}</div>${m.from===me.name?`<div style="font-size:11px;color:#61666d;text-align:right;margin-top:2px">${m.read?'已读':'未读'}${(Date.now()-m.time)<60000?` · <a href="javascript:void(0)" onclick="recallMsg(${m.id})" style="color:var(--pink)">撤回</a>`:''}</div>`:''}</div></div>`).join('')}</div><div class="chat-input"><input id="chatInput" placeholder="输入..." onkeydown="if(event.key==='Enter')sendChat()"><button class="btn btn-ghost" onclick="document.getElementById('chatFile').click()">图</button><input type="file" id="chatFile" accept="image/*" hidden onchange="sendChatImage(this)"><button class="btn btn-pink" onclick="sendChat()">发送</button><button class="btn btn-ghost" onclick="sendInvite()" title="下棋">棋</button></div>`;
+  document.getElementById('chatWin').innerHTML=`<div style="padding:12px 16px;border-bottom:1px solid #f1f2f3;font-weight:700">${esc(withWho)}</div><div class="chat-msgs" id="chatMsgs">${msgs.map(m=>`<div class="chat-msg ${m.from===me.name?'me':''}"><div class="avatar" style="width:30px;height:30px">${esc(m.from[0])}</div><div><div class="chat-bubble">${m.game?renderGame(m):(m.image?`<img src="${m.image}" style="cursor:zoom-in" onclick="window.open(this.src)" download>`:esc(decStr(m.text)))}</div>${m.from===me.name?`<div style="font-size:11px;color:#61666d;text-align:right;margin-top:2px">${m.read?'已读':'未读'}${(Date.now()-m.time)<60000?` · <a href="javascript:void(0)" onclick="recallMsg(${m.id})" style="color:var(--pink)">撤回</a>`:''}</div>`:''}</div></div>`).join('')}</div><div class="chat-input"><input id="chatInput" placeholder="输入..." onkeydown="if(event.key==='Enter')sendChat()"><button class="btn btn-ghost" onclick="document.getElementById('chatFile').click()">图</button><input type="file" id="chatFile" accept="image/*" hidden onchange="sendChatImage(this)"><button class="btn btn-pink" onclick="sendChat()">发送</button><button class="btn btn-ghost" onclick="sendInvite()" title="下棋">棋</button></div>`;
   document.getElementById('chatMsgs').scrollTop=99999;
 }
 function openChatWith(name){openMessages();msgTab='chat';openChat(name);}
@@ -630,8 +630,31 @@ function renderAdmin(kw){
     <input id="adminSearch" placeholder="搜索用户名..." value="${esc(kw)}" oninput="renderAdmin(this.value)" style="width:100%;padding:8px 12px;border:1px solid #e3e5e7;border-radius:8px;margin-bottom:10px">
     <table><tr><th>用户</th><th>等级</th><th>经验</th><th>操作</th></tr>${users.map(u=>`<tr><td>${esc(u.name)}${u.isAdmin?' 👑':''}</td><td>LV${u.level}</td><td>${u.exp||0}</td><td><button class="mini" onclick="setLv(${u.id},${u.level+1})">升</button> <button class="mini" onclick="setLv(${u.id},${u.level-1})">降</button> <input type="number" min="0" max="1000" value="${u.level}" style="width:60px" onchange="setLv(${u.id},parseInt(this.value)||0)"></td></tr>`).join('')}</table>
     <h3 style="margin-top:16px">弹幕</h3><table><tr><th>用户</th><th>内容</th><th>操作</th></tr>${DB.danmu.map(d=>`<tr><td>${esc(d.user)}</td><td>${esc(d.text)}</td><td><button class="mini danger" onclick="delDm(${d.id})">删</button></td></tr>`).join('')}</table>
-    <h3 style="margin-top:16px">举报 <span style="color:var(--pink)">${(DB.reports||[]).filter(r=>r.status==='pending').length}待处理</span></h3>
-    <table><tr><th>作品</th><th>举报人</th><th>原因</th><th>状态</th><th>操作</th></tr>${(DB.reports||[]).map(r=>`<tr><td>${esc(r.workTitle)}</td><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${r.status}</td><td>${r.status==='pending'?`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="resolveReport(${r.id},'remove')">下架删除</button>`:''}</td></tr>`).join('')||'<tr><td colspan=5>暂无举报</td></tr>'}</table>`;
+    <h3 style="margin-top:16px">鸽子视频社区规则</h3><div style="background:#fff8f0;padding:16px;border-radius:8px;line-height:1.8;font-size:13px;max-height:300px;overflow-y:auto">
+<b>第一章 总则</b><br>
+第一条 鸽子视频观看站（以下简称"本站"）致力于打造积极健康、文明友善的视频分享社区。<br>
+第二条 所有用户在本站发布内容、互动交流时，须遵守中华人民共和国相关法律法规。<br>
+<b>第二章 内容规范</b><br>
+第三条 禁止发布违反国家法律法规、危害国家安全、损害社会公共利益的内容。<br>
+第四条 禁止发布色情、低俗、暴力、恐怖、赌博、吸毒等不良信息。<br>
+第五条 禁止发布侵犯他人知识产权、隐私权、名誉权的内容。<br>
+第六条 禁止发布虚假信息、谣言、诈骗内容。<br>
+第七条 禁止发布包含恶意代码、病毒、木马的文件。<br>
+<b>第三章 行为规范</b><br>
+第八条 禁止在弹幕、评论区发布人身攻击、辱骂、歧视性言论。<br>
+第九条 禁止刷屏、恶意灌水、发布与主题无关的广告。<br>
+第十条 禁止冒充他人、恶意注册多个账号。<br>
+第十一条 禁止恶意举报、恶意投诉他人作品。<br>
+<b>第四章 处罚规则</b><br>
+第十二条 违反上述规定者，管理员有权下架作品、删除评论/弹幕。<br>
+第十三条 屡次违规者，将被封禁账号，等级清零。<br>
+第十四条 严重违规者，永久封禁并保留上报公安机关的权利。<br>
+<b>第五章 其他</b><br>
+第十五条 本站保留随时更新规则的权利。<br>
+第十六条 最终解释权归鸽子视频观看站所有。
+</div>
+<h3 style="margin-top:16px">举报 <span style="color:var(--pink)">${(DB.reports||[]).filter(r=>r.status==='pending').length}待处理</span></h3>
+    <table><tr><th>作品</th><th>举报人</th><th>原因</th><th>状态</th><th>操作</th></tr>${(DB.reports||[]).map(r=>`<tr><td><a href="javascript:void(0)" onclick="openWork(${r.workId})" style="color:var(--pink)">${esc(r.workTitle)}</a></td><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${r.status}</td><td>${r.status==='pending'?`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="resolveReport(${r.id},'remove')">下架删除</button>`:''}</td></tr>`).join('')||'<tr><td colspan=5>暂无举报</td></tr>'}</table>`;
 }
 async function setLv(id,lv){const u=DB.users.find(x=>x.id===id);if(!u)return;if(u.isAdmin){u.level=1000;}else{u.level=Math.max(0,Math.min(1000,lv));}await ghWrite('data/users.json',DB.users,'调等级');renderAdmin(document.getElementById('adminSearch')?.value||'');toast('已调整为LV'+u.level);}
 async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('data/danmaku.json',DB.danmu,'删弹幕');renderAdmin(document.getElementById('adminSearch')?.value||'');}
