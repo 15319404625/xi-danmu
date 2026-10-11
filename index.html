@@ -565,11 +565,12 @@ async function move(msgId,i){
   const g=m.game;
   if(g.board[i]||g.turn!==me.name)return;
   g.board[i]=g.turn===m.from?'X':'O';
-  // check win
   const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  for(const w of wins){if(g.board[w[0]]&&g.board[w[0]]===g.board[w[1]]&&g.board[w[1]]===g.board[w[2]]){g.state='over';g.winner=me.name;}}
-  if(!g.state)g.state='over';
-  g.turn=g.turn===m.from?m.to:m.from;
+  let win=false;
+  for(const w of wins){if(g.board[w[0]]&&g.board[w[0]]===g.board[w[1]]&&g.board[w[1]]===g.board[w[2]]){win=true;}}
+  if(win){g.state='over';g.winner=me.name;}
+  else if(g.board.every(c=>c)){g.state='over';g.winner='';}
+  else{g.turn=g.turn===m.from?m.to:m.from;}
   await ghWrite('data/messages.json',DB.messages,'下棋');
   openChat(curChatWith);
 }
