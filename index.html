@@ -688,7 +688,10 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
           const l=document.getElementById('cLike');if(l)l.textContent=(w.likes||[]).length;
     const lc=document.getElementById('liveCount');if(lc)lc.textContent=(DB.viewers||[]).filter(v=>v.workId===curWork.id&&Date.now()-v.time<60000).length+'人正在看';
           const c=document.getElementById('cCoin');if(c)c.textContent=(w.coins||[]).length;
+          const fl=document.getElementById('cFav');if(fl)fl.textContent=(w.favs||[]).length;
         }
+        // re-render comments to show pin changes
+        if(document.getElementById('cmtList'))loadComments(curWork.id);
       }
     }catch(e){}
   },900);
