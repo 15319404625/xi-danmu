@@ -510,7 +510,7 @@ function renderMessages(){
   const peers=[...new Set(DB.messages.filter(m=>m.from===me.name||m.to===me.name).flatMap(m=>[m.from,m.to]))].filter(p=>p&&p!==me.name);
   document.getElementById('page-messages').innerHTML=`<h2 style="margin:10px 0">消息中心</h2>
     <div class="tabs2"><span class="${msgTab==='notif'?'active':''}" onclick="msgTab='notif';renderMessages()">通知</span><span class="${msgTab==='chat'?'active':''}" onclick="msgTab='chat';renderMessages()">私信</span></div>
-    ${msgTab==='notif'?`<div>${myNotifs.length?myNotifs.map(n=>`<div class="notif-item ${n.read?'':'unread'}" onclick="openNotif(${n.id})"><div class="avatar">${esc(n.from[0])}</div><div><div>${esc(n.text)}</div><div style="font-size:12px;color:#61666d">${new Date(n.time).toLocaleString()}</div></div></div>`).join(''):'<div class="empty">暂无通知</div>'}</div>`
+    ${msgTab==='notif'?`<div>${myNotifs.length?myNotifs.map(n=>`<div class="notif-item ${n.read?'':'unread'}" onclick="openNotif(${n.id})"><div class="avatar">${esc(n.from[0])}</div><div><div>${esc(n.text)}${adminBadge(n.from)}</div><div style="font-size:12px;color:#61666d">${new Date(n.time).toLocaleString()}</div></div></div>`).join(''):'<div class="empty">暂无通知</div>'}</div>`
     :`<div class="chat-layout"><div class="chat-list">${peers.length?peers.map(p=>`<div class="item" onclick="openChat('${esc(p)}')"><div class="avatar">${esc(p[0])}</div><div style="font-weight:600">${esc(p)}</div></div>`).join(''):'<div class="empty">还没有会话</div>'}</div><div class="chat-win" id="chatWin"><div class="empty">选一个人开始聊天</div></div></div>`}`;
 }
 async function openNotif(id){
