@@ -220,7 +220,7 @@ function renderNav(){
   const el=document.getElementById('navUser');
   if(me){
     const unread=DB.notifs.filter(n=>n.to===me.name&&!n.read).length+DB.messages.filter(m=>m.to===me.name&&!m.read).length;
-    el.innerHTML=`<div style="position:relative"><div class="avatar" onclick="openMenu()">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div>${unread?`<div class="badge">${unread}</div>`:''}</div>`;
+    el.innerHTML=`<div style="position:relative"><div class="avatar" onclick="openProfile()" title="我的主页">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div>${unread?`<div class="badge">${unread}</div>`:''}</div>`;
   } else {
     el.innerHTML=`<button class="btn btn-ghost" onclick="openLogin(false)">登录</button><button class="btn btn-pink" onclick="openLogin(true)">注册</button>`;
   }
@@ -260,7 +260,7 @@ function loadCats(){document.getElementById('cats').innerHTML=CATS.map(([v,n])=>
 function workCard(w){
   const dmN=DB.danmu.filter(d=>d.workId===w.id).length,cmN=DB.comments.filter(c=>c.workId===w.id).length;
   const thumb=w.type==='video'?(w.cover?`<img src="${w.cover}">`:(w.video?`<video src="${w.video}" muted></video>`:`<div class="playico">▶</div>`)):((w.images||[]).length?`<img src="${w.images[0]}">`:`<div class="playico" style="font-size:24px">文</div>`);
-  return `<div class="card" onclick="openWork(${w.id})"><div class="thumb">${thumb}<div class="stats"><span>▶ ${w.playCount||0}</span><span>💬 ${dmN}</span></div></div><div class="body"><div class="title"><span class="tag-type">${w.type==='video'?'视频':'图文'}</span>${esc(w.title)}</div><div class="meta">${esc(w.author)}${adminBadge(w.author)} · ${(w.likes||[]).length}赞 · ${cmN}评</div></div></div>`;
+  return `<div class="card" onclick="openWork(${w.id})"><div class="thumb">${thumb}<div class="stats"><span>▶ ${w.playCount||0}</span><span>💬 ${dmN}</span></div></div><div class="body"><div class="title"><span class="tag-type">${w.type==='video'?'视频':'图文'}</span>${esc(w.title)}</div><div class="meta"><a href="javascript:void(0)" onclick="event.stopPropagation();showUser('${esc(w.author)}')" style="cursor:pointer">${esc(w.author)}${adminBadge(w.author)}</a> · ${(w.likes||[]).length}赞 · ${cmN}评</div></div></div>`;
 }
 async function loadHome(){loadCats();let list=[...DB.works].sort((a,b)=>b.createdAt-a.createdAt);if(activeCat!=='all')list=list.filter(w=>w.category===activeCat);document.getElementById('homeGrid').innerHTML=list.length?list.map(workCard).join(''):'<div class="empty">暂无内容</div>';}
 function doSearch(q){
@@ -343,7 +343,7 @@ function renderDetail(w){
     ?`<div class="player-wrap" oncontextmenu="return false">${w.video?`<video src="${w.video}" controls autoplay controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false"></video>`:'<div style="color:#fff;text-align:center;padding-top:40%">无视频源</div>'}<div class="danmu-layer" id="danmuLayer"></div></div>`
     :`<div class="post-view"><h1>${esc(w.title)}</h1><div class="text">${esc(w.content)}</div>${(w.images||[]).map(i=>`<img src="${i}" oncontextmenu="return false">`).join('')}</div>`;
   document.getElementById('page-detail').innerHTML=`<div class="detail" oncontextmenu="${w.type==='video'?'return false':''}"><div style="display:flex;gap:8px;margin-bottom:10px;align-items:center"><button class="btn btn-ghost" onclick="go('home');history.replaceState(null,'','#/')">返回</button><button class="btn btn-ghost" onclick="navigator.clipboard.writeText(location.href).then(()=>toast('链接已复制'))">复制链接</button><span style="color:#61666d;font-size:13px">ID:${w.id}</span></div>${player}
-    <div class="info-row"><div class="avatar">${esc(w.author[0])}</div><div><div style="font-weight:700">${esc(w.author)}${adminBadge(w.author)}</div><div style="font-size:12px;color:#61666d">${w.playCount||0}播放</div></div>
+    <div class="info-row"><div class="avatar" onclick="showUser('${esc(w.author)}')" style="cursor:pointer">${esc(w.author[0])}</div><div><div style="font-weight:700"><a href="javascript:void(0)" onclick="showUser('${esc(w.author)}')" style="cursor:pointer">${esc(w.author)}${adminBadge(w.author)}</a></div><div style="font-size:12px;color:#61666d">${w.playCount||0}播放</div></div>
     ${me&&me.name!==w.author?`<button class="btn btn-ghost" id="btnFollow" onclick="toggleFollow('${esc(w.author)}')">${isFollowing(w.author)?'已关注':'+ 关注'}</button>`:''}
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
       <button class="act-btn" id="btnLike" onclick="act('like')">👍 <span id="cLike">${(w.likes||[]).length}</span></button>
@@ -524,7 +524,7 @@ async function openNotif(id){
 function showUser(name){
   go('profile');
   const u=DB.users.find(x=>x.name===name);
-  const works=DB.works.filter(w=>w.author===name);
+  const works=DB.works.filter(w=>w.author===name).sort((a,b)=>b.createdAt-a.createdAt);
   const following=DB.follows.find(f=>f.follower===me?.name)?.following||[];
   document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${u&&u.avatar?`<img src="${u.avatar}">`:esc(name[0])}</div><div><h2>${esc(name)}</h2><div style="color:#61666d">${u?('LV'+(u.level||0)):''} · ${works.length}个作品</div></div><div style="margin-left:auto">${me&&me.name!==name?`<button class="btn btn-ghost" onclick="toggleFollow('${esc(name)}');showUser('${esc(name)}')">${following.includes(name)?'已关注':'+ 关注'}</button><button class="btn btn-pink" onclick="openChatWith('${esc(name)}')">私信</button>`:''}</div></div><div class="grid">${works.map(workCard).join('')||'<div class="empty">TA还没发布作品</div>'}</div>`;
 }
@@ -560,7 +560,7 @@ async function sendChatImage(inp){
 }
 
 function openProfile(){if(!me)return openLogin(false);go('profile');
-  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div><div><h2>${esc(me.name)}</h2><div style="color:#61666d">LV${me.level}/1000 · 经验${me.exp}</div></div><div style="margin-left:auto"><label class="btn btn-ghost" style="cursor:pointer">头像<input type="file" hidden accept="image/*" onchange="upAvatar(this)"></label></div></div><h3>我的作品</h3><div class="grid">${DB.works.filter(w=>w.author===me.name).map(workCard).join('')||'<div class="empty">还没发布</div>'}</div>
+  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div><div><h2>${esc(me.name)}</h2><div style="color:#61666d">LV${me.level}/1000 · 经验${me.exp} · ${DB.works.filter(w=>w.author===me.name).length}个作品</div></div><div style="margin-left:auto"><label class="btn btn-ghost" style="cursor:pointer">头像<input type="file" hidden accept="image/*" onchange="upAvatar(this)"></label></div></div><h3>我的作品</h3><div class="grid">${DB.works.filter(w=>w.author===me.name).sort((a,b)=>b.createdAt-a.createdAt).map(workCard).join('')||'<div class="empty">还没发布</div>'}</div>
 <h3 style="margin-top:20px">我的收藏</h3><div class="grid">${DB.works.filter(w=>(w.favs||[]).includes(me.name)).map(workCard).join('')||'<div class="empty">还没收藏</div>'}</div>`;
 }
 async function upAvatar(inp){
