@@ -176,9 +176,9 @@ function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove(
 
 let _writtenAt={}; // path -> last write ts, to protect against stale CDN reads
 async function ghRead(path){
-  // read from GitHub raw with a cache-busting param so every poll sees the latest data instantly
-  // (jsDelivr cache propagation is slow and caused "can't receive messages" across devices)
-  try{const r=await fetch(`https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/${path}?t=${cacheBust++}`);if(!r.ok)return null;return await r.json();}catch(e){return null;}
+  // read from GitHub raw with a unique cache-busting param so every request bypasses the CDN cache
+  // (raw keeps per-URL cache for ~5min; a fixed "t=0" URL can pin stale data and break cross-device login)
+  try{const r=await fetch(`https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/${path}?t=${Date.now()}-${Math.floor(Math.random()*1e6)}`);if(!r.ok)return null;return await r.json();}catch(e){return null;}
 }
 function ghPurge(path){
   // tell jsDelivr to drop its cache for this path so all users see the latest immediately
