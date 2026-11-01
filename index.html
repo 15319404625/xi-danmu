@@ -844,13 +844,15 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
   // auto-refresh data every 5s without reloading page
   setInterval(async()=>{
     try{
-      for(const k of ['works','comments','notifs','messages','reports','viewers']){
+      for(const k of ['works','comments','notifs','messages','reports','viewers','users','follows']){
         const path=DATA_FILES[k];
         // skip keys written within last 8s: their CDN purge may not be settled yet, keep local fresh copy
         if(_writtenAt[path]&&Date.now()-_writtenAt[path]<8000)continue;
         const fresh=await ghRead(path);
         if(fresh){DB[k]=fresh;localStorage.setItem('xi_'+k,JSON.stringify(fresh));}
       }
+      // re-anchor current user after users.json refresh (new registrations appear on other devices)
+      if(me){const nu=DB.users.find(x=>x.name===me.name);if(nu)me=nu;else{me=null;localStorage.removeItem('xi_user');}}
       // re-render current view lightly
       if(me){
         const unread=DB.notifs.filter(n=>n.to===me.name&&!n.read).length+DB.messages.filter(m=>m.to===me.name&&!m.read).length;
