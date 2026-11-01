@@ -220,7 +220,9 @@ function renderNav(){
   const el=document.getElementById('navUser');
   if(me){
     const unread=DB.notifs.filter(n=>n.to===me.name&&!n.read).length+DB.messages.filter(m=>m.to===me.name&&!m.read).length;
-    el.innerHTML=`<div style="position:relative"><div class="avatar" onclick="openProfile()" title="我的主页">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div>${unread?`<div class="badge">${unread}</div>`:''}</div>`;
+    el.innerHTML=`<div style="position:relative"><div class="avatar" onclick="openProfile()" title="我的主页">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div></div>
+      <div style="position:relative;cursor:pointer;font-size:20px" onclick="openMessages()" title="消息/通知">🔔${unread?`<div class="badge" id="navBadge" style="position:absolute;top:-6px;right:-10px">${unread}</div>`:''}</div>
+      <button class="btn btn-ghost" onclick="openMenu()" style="padding:4px 10px">⋯</button>`;
   } else {
     el.innerHTML=`<button class="btn btn-ghost" onclick="openLogin(false)">登录</button><button class="btn btn-pink" onclick="openLogin(true)">注册</button>`;
   }
@@ -686,6 +688,12 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         if(fresh){DB[k]=fresh;localStorage.setItem('xi_'+k,JSON.stringify(fresh));}
       }
       // re-render current view lightly
+      if(me){
+        const unread=DB.notifs.filter(n=>n.to===me.name&&!n.read).length+DB.messages.filter(m=>m.to===me.name&&!m.read).length;
+        const nb=document.getElementById('navBadge');
+        if(nb){if(parseInt(nb.textContent)!==unread){nb.textContent=unread;if(unread===0)nb.remove();}}
+        else if(unread>0)renderNav();
+      }
       if(curWork){
         const w=DB.works.find(x=>x.id===curWork.id);
         if(w){
