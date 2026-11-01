@@ -624,22 +624,36 @@ function openChat(withWho){curChatWith=withWho;
   document.getElementById('chatMsgs').scrollTop=99999;
 }
 function openChatWith(name){msgTab='chat';openMessages();openChat(name);}
+// merge-write messages: pull latest server copy, merge by id (local wins), write back.
+// Prevents one device from overwriting another device's new messages.
+async function writeMessages(){
+  let server=[];
+  try{
+    const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/data/messages.json`,{headers:{Authorization:'token '+TOKEN}});
+    if(r.ok)server=JSON.parse(decodeURIComponent(escape(atob((await r.json()).content))));
+  }catch(e){}
+  const map={};
+  (server||[]).forEach(m=>{if(m&&m.id)map[m.id]=m;});
+  DB.messages.forEach(m=>{if(m&&m.id)map[m.id]=m;}); // local wins (newest edits like recall)
+  DB.messages=Object.values(map).sort((a,b)=>(a.time||0)-(b.time||0));
+  await ghWrite('data/messages.json',DB.messages,'私信');
+}
 async function sendChat(){
   const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return;
   DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text:encStr(text),image:'',read:false,time:Date.now()});
-  await ghWrite('data/messages.json',DB.messages,'私信');openChat(curChatWith);
+  await writeMessages();openChat(curChatWith);
 }
 async function recallMsg(id){
   if(!confirm('撤回这条消息？'))return;
-  DB.messages=DB.messages.filter(m=>m.id!==id);
-  await ghWrite('data/messages.json',DB.messages,'撤回');
-  openChat(curChatWith);
+  const m=DB.messages.find(x=>x.id===id);if(!m)return;
+  m.text=encStr('[已撤回]');m.recalled=true; // mark, not delete, so merge stays safe
+  await writeMessages();openChat(curChatWith);
 }
 async function sendChatImage(inp){
   const f=inp.files[0];if(!f)return;toast('上传图片...');
   const url=await ghUploadFile(Date.now()+'_c.jpg',await readFileAsDataURL(f));
   DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text:'',image:url,read:false,time:Date.now()});
-  await ghWrite('data/messages.json',DB.messages,'私信图');openChat(curChatWith);
+  await writeMessages();openChat(curChatWith);
 }
 
 function openProfile(){if(!me)return openLogin(false);go('profile');
@@ -788,13 +802,11 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         else if(unread>0)renderNav();
       }
       if(curWork){
-        // keep current user marked as "watching" and persist periodically so others see them live
+        // keep current user marked as "watching" in memory for live count (persist only on open/unload, not per-poll)
         DB.viewers=DB.viewers||[];
         const uid=me?me.name:'guest';
         DB.viewers=DB.viewers.filter(v=>!(v.workId===curWork.id&&v.user===uid));
         DB.viewers.push({workId:curWork.id,user:uid,time:Date.now()});
-        window._pollN=(window._pollN||0)+1;
-        if(window._pollN%10===0)ghWrite('data/viewers.json',DB.viewers,'在线').catch(()=>{});
         const w=DB.works.find(x=>x.id===curWork.id);
         if(w){
           curPlayCount=w.playCount;curLikes=w.likes;curCoins=w.coins;curFavs=w.favs;
