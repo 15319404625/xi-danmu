@@ -174,8 +174,13 @@ function toast(t){const e=document.getElementById('toast');e.textContent=t;e.sty
 function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));document.getElementById('page-'+p).classList.add('show');window.scrollTo(0,0);if(!location.hash.startsWith('#/work/'))history.replaceState(null,'','#/'+p);}
 
+let _writtenAt={}; // path -> last write ts, to protect against stale CDN reads
 async function ghRead(path){
   try{const r=await fetch(`https://cdn.jsdelivr.net/gh/${GH_USER}/${GH_REPO}@${GH_BRANCH}/${path}?t=${cacheBust++}`);if(!r.ok)return null;return await r.json();}catch(e){return null;}
+}
+function ghPurge(path){
+  // tell jsDelivr to drop its cache for this path so all users see the latest immediately
+  try{fetch(`https://purge.jsdelivr.net/gh/${GH_USER}/${GH_REPO}@${GH_BRANCH}/${path}`).catch(()=>{});}catch(e){}
 }
 async function ghWrite(path,obj,msg,retry){
   retry=retry||0;
@@ -187,6 +192,8 @@ async function ghWrite(path,obj,msg,retry){
     if(res.status===409&&retry<3){await new Promise(r=>setTimeout(r,500));return ghWrite(path,obj,msg,retry+1);}
     throw new Error('保存失败 '+res.status);
   }
+  _writtenAt[path]=Date.now();
+  ghPurge(path);
 }
 async function ghUploadFile(filename,dataUri){
   const [meta,b64]=dataUri.split(',');
@@ -245,6 +252,8 @@ async function doLogin(isReg){
     DB.users.push({id:nextId(),name:name,pass:await hashPw(pass),avatar:'',level:0,exp:0,isAdmin:false});
     await ghWrite('data/users.json',DB.users,'注册 '+name);
     localStorage.setItem('xi_user',name);me=DB.users.find(u=>u.name===name);
+    renderNav();closeModal();toast('注册成功！先通过新手答题升到1级吧');loadHome();startQuiz();
+    return;
   } else {
     const u=DB.users.find(x=>x.name===name);
     if(!u||u.pass!==await hashPw(pass))return toast('用户名或密码错误');
@@ -256,6 +265,67 @@ async function doLogin(isReg){
     const now=Date.now();const last=me.lastDaily||0;
     if(now-last>=86400000){me.level=Math.min(1000,me.level+1);me.lastDaily=now;ghWrite('data/users.json',DB.users,'每日升级').catch(()=>{});}
   }
+}
+
+// ===== 新手答题（注册后 20 题，全对升 LV1）=====
+const QUIZ=[
+  {q:'鸽子视频观看站禁止发布哪种内容？',a:['合法的原创视频','色情低俗内容','生活分享','自制网站']},
+  {q:'在弹幕区可以做什么？',a:['辱骂他人','刷屏灌水','正常友好的弹幕互动','发布广告']},
+  {q:'遇到违规内容应该怎么做？',a:['跟着转发','举报给管理员','截图嘲讽','无视']},
+  {q:'用户名可以怎样设置？',a:['冒充他人用户名','与已有账号重名','取一个文明好记的名字','使用违法违规词汇']},
+  {q:'点赞一个作品的作用是？',a:['删除作品','表达喜欢和支持','扣经验','给作者发私信']},
+  {q:'收藏作品后在哪里查看？',a:['个人主页的我的收藏','别人的主页','弹幕区','管理后台']},
+  {q:'发布视频时，封面可以？',a:['用违规图片','用与内容无关的广告','自动截取视频第一帧或自选','留空即可']},
+  {q:'以下哪种弹幕颜色需要等级？',a:['白色','红色','彩虹色(需LV3)','蓝色']},
+  {q:'评论区置顶功能谁可以使用？',a:['任何人','管理员','作品作者','游客']},
+  {q:'私信里的图片消息可以？',a:['直接发任意违规图','点击链接查看/下载','刷屏发送','代替文字']},
+  {q:'观看历史记录在哪里查看？',a:['排行榜','个人主页的观看历史','弹幕列表','搜索框']},
+  {q:'排行榜有哪几个榜单？',a:['点赞/播放/投币/收藏','只有点赞','只有播放','没有榜单']},
+  {q:'账号等级有什么用？',a:['没有作用','解锁更多功能如彩虹弹幕','决定密码','仅显示']},
+  {q:'发现有人冒充官方管理员应该？',a:['信以为真','点击“官方”徽章辨别并举报','给ta转账','模仿ta']},
+  {q:'图文投稿可以？',a:['只发文字不上传图片','只发图片不写字','必须两者都有','不能发布']},
+  {q:'作品的独立链接有什么用？',a:['没作用','分享给朋友直达该作品','只能自己看','会变']},
+  {q:'投币是对作品的？',a:['贬低','支持与认可','删除操作','举报']},
+  {q:'退出登录后会发生什么？',a:['账号数据被清空','下次登录仍能找回账号','密码会变','作品会丢']},
+  {q:'别人点你的头像或名字会？',a:['进入你的主页看你的作品','直接删除你的账号','扣你经验','发通知']},
+  {q:'社区规则由谁执行？',a:['没有管理员','官方管理员按照规则处理','随便谁','只有你自己']}
+];
+const QUIZ_ANSWERS=[1,2,1,2,1,0,2,2,2,1,1,0,1,1,0,1,1,1,0,1]; // index of correct option
+let Q={q:0,ans:new Array(QUIZ.length).fill(-1),attempts:0,score:0};
+function startQuiz(){Q={q:0,ans:new Array(QUIZ.length).fill(-1),attempts:0,score:0};renderQuiz();}
+function renderQuiz(){
+  if(Q.q>=QUIZ.length)return endQuiz();
+  const it=QUIZ[Q.q];
+  openModal(`<h2>新手答题 · 第${Q.q+1}/20题</h2>
+    <div style="margin:10px 0;font-weight:600">${it.q}</div>
+    ${it.a.map((o,i)=>`<div style="padding:10px 12px;border:1px solid #e3e5e7;border-radius:8px;margin:6px 0;cursor:pointer;background:${Q.ans[Q.q]===i?'#ffe9f0':''}" onclick="pickAns(${i})">${o}</div>`).join('')}
+    <div class="actions"><button class="btn btn-pink" onclick="nextQ()">${Q.q===QUIZ.length-1?'提交':'下一题'}</button></div>
+    <div style="font-size:12px;color:#61666d;margin-top:8px">答题进度：${Q.q+1}/20 · 已答对 ${Q.score} 题 · 尝试次数 ${Q.attempts+1}</div>`);
+}
+function pickAns(i){Q.ans[Q.q]=i;renderQuiz();}
+function nextQ(){
+  if(Q.ans[Q.q]<0)return toast('请先选择一个答案');
+  if(Q.ans[Q.q]===QUIZ_ANSWERS[Q.q])Q.score++;
+  Q.q++;renderQuiz();
+}
+function endQuiz(){
+  Q.attempts++;
+  const wrong=QUIZ.map((it,i)=>Q.ans[i]!==QUIZ_ANSWERS[i]?i:-1).filter(i=>i>=0);
+  if(wrong.length===0){
+    // all correct: level up to 1
+    me.level=Math.max(me.level,1);if(!me.quizPassed){me.quizPassed=true;}
+    ghWrite('data/users.json',DB.users,'答题满分').catch(()=>{});
+    openModal(`<h2>🎉 满分通关</h2>
+      <div style="margin:10px 0">太棒了！20 题全部答对，等级已升至 <b>LV1</b>。</div>
+      <div style="background:#f1f2f3;padding:12px;border-radius:8px">你一共用了 <b>${Q.attempts}</b> 次就拿到了满分</div>
+      <div class="actions"><button class="btn btn-pink" onclick="closeModal();renderNav();if(location.hash.includes('profile'))openProfile();">开始使用</button></div>`);
+    return;
+  }
+  // wrong answers shown, allow retry
+  openModal(`<h2>第 ${Q.attempts} 次作答 · 得分 ${Q.score}/20</h2>
+    <div style="margin:10px 0">答错了 ${wrong.length} 题：</div>
+    ${wrong.map(i=>`<div style="padding:8px;border:1px solid #ffd6de;border-radius:8px;margin:6px 0;font-size:13px"><b>第${i+1}题</b> ${QUIZ[i].q}<br><span style="color:#d33">你的答案：${QUIZ[i].a[Q.ans[i]]}</span> · <span style="color:#2a8">正确答案：${QUIZ[i].a[QUIZ_ANSWERS[i]]}</span></div>`).join('')}
+    <div class="actions"><button class="btn btn-pink" onclick="Q.q=0;Q.ans=new Array(QUIZ.length).fill(-1);Q.score=0;renderQuiz()">重新作答</button></div>`);
 }
 
 function loadCats(){document.getElementById('cats').innerHTML=CATS.map(([v,n])=>`<span class="${v===activeCat?'active':''}" onclick="activeCat='${v}';loadCats();loadHome()">${n}</span>`).join('');}
@@ -276,7 +346,7 @@ function doSearch(q){
 
 function openUpload(){
   if(!me)return openLogin(false);
-  openModal(`<h2>发布作品</h2><div class="typepick"><div id="tp-video" onclick="pickType('video')"><b>视频投稿</b><br><small>不限大小</small></div><div id="tp-post" onclick="pickType('post')"><b>图文投稿</b><br><small>文字+图片</small></div></div><label>标题</label><input id="upTitle"><label>简介/正文</label><textarea id="upContent"></textarea><label>分区</label><select id="upCat">${CATS.filter(c=>c[0]!=='all').map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')}</select><div id="videoFields"><label>视频文件(不限大小)</label><input type="file" id="upVideo" accept="video/*"><label>或填视频链接</label><input id="upVideoUrl" placeholder="https://..."><label>封面图</label><input type="file" id="upCover" accept="image/*"></div><div id="postFields" style="display:none"><label>图片(可多选)</label><input type="file" id="upImages" accept="image/*" multiple></div><div class="actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-pink" onclick="doUpload()">发布</button></div>`);
+  openModal(`<h2>发布作品</h2><div class="typepick"><div id="tp-video" onclick="pickType('video')"><b>视频投稿</b><br><small>不限大小</small></div><div id="tp-post" onclick="pickType('post')"><b>图文投稿</b><br><small>文字+图片</small></div></div><label>标题</label><input id="upTitle"><label>简介/正文</label><textarea id="upContent"></textarea><label>分区</label><select id="upCat">${CATS.filter(c=>c[0]!=='all').map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')}</select><div id="videoFields"><label>视频文件(不限大小)</label><input type="file" id="upVideo" accept="video/*"><label>或填视频链接</label><input id="upVideoUrl" placeholder="https://..."><label>封面图</label><input type="file" id="upCover" accept="image/*"></div><div id="postFields" style="display:none"><label>图片(可多选，可不传)</label><input type="file" id="upImages" accept="image/*" multiple><small style="color:#61666d">不选图片也可发布纯文字图文</small></div><div class="actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-pink" onclick="doUpload()">发布</button></div>`);
   window._utype='video';pickType('video');
 }
 function pickType(t){window._utype=t;document.getElementById('tp-video').classList.toggle('sel',t==='video');document.getElementById('tp-post').classList.toggle('sel',t==='post');document.getElementById('videoFields').style.display=t==='video'?'block':'none';document.getElementById('postFields').style.display=t==='post'?'block':'none';}
@@ -311,7 +381,7 @@ async function doUpload(){
         const cf=document.getElementById('upCover').files[0];if(cf)cover=await ghUploadFile(Date.now()+'_c.jpg',await readFileAsDataURL(cf));
       } else {video=document.getElementById('upVideoUrl').value.trim();}
     } else {
-      setP('上传图片...');
+      setP('上传图片(可选)...');
       for(const f of document.getElementById('upImages').files)images.push(await ghUploadFile(Date.now()+'_'+f.name,await readFileAsDataURL(f)));
     }
     DB.works.unshift({id:nextId(),type:window._utype,title,content:document.getElementById('upContent').value,category:document.getElementById('upCat').value,video,cover,images,author:me.name,authorId:me.id,playCount:0,likes:[],coins:[],favs:[],createdAt:Date.now()});
@@ -567,8 +637,17 @@ function openProfile(){if(!me)return openLogin(false);go('profile');
 }
 async function upAvatar(inp){
   const f=inp.files[0];if(!f)return;toast('上传中...');
-  me.avatar=await ghUploadFile(Date.now()+'_a.jpg',await readFileAsDataURL(f));
-  await ghWrite('data/users.json',DB.users,'头像');toast('已更新');openProfile();renderNav();
+  const url=await ghUploadFile(Date.now()+'_a.jpg',await readFileAsDataURL(f));
+  me.avatar=url;
+  // wait until the avatar file is actually loadable on CDN (new file may take a moment to propagate)
+  for(let i=0;i<12;i++){
+    try{const loaded=await new Promise(res=>{const im=new Image();im.onload=()=>res(true);im.onerror=()=>res(false);im.src=url+(i?'?t='+Date.now():'');});
+      if(loaded)break;}catch(e){}
+    await new Promise(r=>setTimeout(r,600));
+  }
+  await ghWrite('data/users.json',DB.users,'头像');
+  toast('头像已更新');renderNav();
+  if(location.hash.includes('profile'))openProfile();
 }
 function openHistory(){if(!me)return openLogin(false);go('profile');
   const list=DB.history.filter(h=>h.user===me.name).map(h=>DB.works.find(w=>w.id===h.workId)).filter(Boolean);
@@ -684,7 +763,10 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
   setInterval(async()=>{
     try{
       for(const k of ['works','comments','notifs','messages']){
-        const fresh=await ghRead(DATA_FILES[k]);
+        const path=DATA_FILES[k];
+        // skip keys written within last 8s: their CDN purge may not be settled yet, keep local fresh copy
+        if(_writtenAt[path]&&Date.now()-_writtenAt[path]<8000)continue;
+        const fresh=await ghRead(path);
         if(fresh){DB[k]=fresh;localStorage.setItem('xi_'+k,JSON.stringify(fresh));}
       }
       // re-render current view lightly
