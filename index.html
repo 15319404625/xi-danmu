@@ -208,8 +208,8 @@ async function ghUploadFile(filename,dataUri){
   await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/refs/heads/${GH_BRANCH}`,{method:'PATCH',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({sha:commitSha})});
   return `https://cdn.jsdelivr.net/gh/${GH_USER}/${GH_REPO}@${GH_BRANCH}/uploads/${filename}`;
 }
-async function encStr(s){try{return btoa(unescape(encodeURIComponent(s))).split('').reverse().map((c,i)=>String.fromCharCode(c.charCodeAt(0)+(i%7))).join('');}catch(e){return s;}}
-function decStr(s){try{let r=s.split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)-(i%7))).join('');return decodeURIComponent(escape(atob(r.split('').reverse().join(''))));}catch(e){return s;}}
+function encStr(s){try{return btoa(unescape(encodeURIComponent(s))).split('').reverse().map((c,i)=>String.fromCharCode(c.charCodeAt(0)+(i%7))).join('');}catch(e){return s;}}
+function decStr(s){try{if(typeof s!=='string')return '';let r=s.split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)-(i%7))).join('');return decodeURIComponent(escape(atob(r.split('').reverse().join(''))));}catch(e){return '';}}
 async function toggleDark(){document.body.classList.toggle('dark');localStorage.setItem('dark',document.body.classList.contains('dark')?'1':'0');}
 if(localStorage.getItem('dark')==='1')document.body.classList.add('dark');
 async function hashPw(p){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
