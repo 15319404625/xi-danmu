@@ -457,6 +457,7 @@ async function doUpload(){
       setP('上传图片(可选)...');
       for(const f of document.getElementById('upImages').files)images.push(await ghUploadFile(Date.now()+'_'+f.name,await readFileAsDataURL(f)));
     }
+    _writtenAt['data/works.json']=Date.now();
     DB.works.unshift({id:nextId(),type:window._utype,title,content:document.getElementById('upContent').value,category:document.getElementById('upCat').value,video,cover,images,author:me.name,authorId:me.id,playCount:0,likes:[],coins:[],favs:[],createdAt:Date.now()});
     DB.works=await writeMerge('data/works.json',DB.works);
     addExp(me.name,window._utype==='video'?50:10);await ghWrite('data/users.json',DB.users,'经验');
@@ -515,6 +516,7 @@ async function act(a){
   if(!me)return openLogin(false);
   // re-anchor curWork to the current in-memory array (polling replaces DB.works)
   let w=DB.works.find(x=>x.id===curWork.id);if(!w){w=curWork;DB.works.push(w);}curWork=w;
+  _writtenAt['data/works.json']=Date.now();
   if(a==='like'){const i=w.likes.indexOf(me.name);if(i>=0)w.likes.splice(i,1);else{w.likes.push(me.name);notify(w.author,me.name+' 赞了你的作品《'+w.title+'》',w.id);}}
   if(a==='coin'&&!w.coins.includes(me.name))w.coins.push(me.name);
   if(a==='fav'){const i=w.favs.indexOf(me.name);if(i>=0)w.favs.splice(i,1);else w.favs.push(me.name);toast(w.favs.includes(me.name)?'已收藏':'已取消收藏');}
@@ -531,7 +533,7 @@ function reportWork(){
 }
 async function resolveReport(id,action){
   const r=DB.reports.find(x=>x.id===id);if(!r)return;
-  if(action==='remove'){DB.works=DB.works.filter(w=>w.id!==r.workId);DB.works=await writeMerge('data/works.json',DB.works,new Set([r.workId]));}
+  if(action==='remove'){_writtenAt['data/works.json']=Date.now();DB.works=DB.works.filter(w=>w.id!==r.workId);DB.works=await writeMerge('data/works.json',DB.works,new Set([r.workId]));}
   r.status=action==='remove'?'已删除':'已放行';
   await ghWrite('data/reports.json',DB.reports,'处理举报');
   toast('已'+r.status);renderAdmin(document.getElementById('adminSearch')?.value||'');
@@ -539,12 +541,13 @@ async function resolveReport(id,action){
 function isFollowing(name){return (DB.follows.find(f=>f.follower===me?.name)?.following||[]).includes(name);}
 async function toggleFollow(name){
   if(!me)return openLogin(false);
+  _writtenAt['data/follows.json']=Date.now();_writtenAt['data/notifs.json']=Date.now();
   let f=DB.follows.find(f=>f.follower===me.name);if(!f){f={follower:me.name,following:[]};DB.follows.push(f);}
   const i=f.following.indexOf(name);if(i>=0)f.following.splice(i,1);else{f.following.push(name);notify(name,me.name+' 关注了你',null);}
   await ghWrite('data/follows.json',DB.follows,'关注');await ghWrite('data/notifs.json',DB.notifs,'通知');
   document.getElementById('btnFollow').textContent=f.following.includes(name)?'已关注':'+ 关注';
 }
-function notify(to,text,workId,fromUser){if(!to||to===me?.name)return;DB.notifs.push({id:nextId(),to,text,workId:workId||null,from:fromUser||(me?me.name:'系统'),read:false,time:Date.now()});}
+function notify(to,text,workId,fromUser){if(!to||to===me?.name)return;_writtenAt['data/notifs.json']=Date.now();DB.notifs.push({id:nextId(),to,text,workId:workId||null,from:fromUser||(me?me.name:'系统'),read:false,time:Date.now()});}
 
 async function loadDanmu(wid){const layer=document.getElementById('danmuLayer');if(!layer)return;layer.innerHTML='';
   window._activeDm=[];
@@ -598,6 +601,7 @@ async function sendDanmu(){
     if(selColor==='rainbow'&&(!me||me.level<3))return toast('渐变需要LV3');
     lastAction=now;
     const v=document.querySelector('video');const vt=v?v.currentTime:0;
+    _writtenAt['data/danmaku.json']=Date.now();
     DB.danmu.push({id:nextId(),workId:curWork.id,user:me.name,avatar:me.avatar||'',text,color:selColor,t:vt,time:Date.now()});
     DB.danmu=await writeMerge('data/danmaku.json',DB.danmu);
     addExp(me.name,2);await ghWrite('data/users.json',DB.users,'经验');
@@ -628,6 +632,7 @@ function cmtHtml(c,list,depth){
 }
 async function togglePin(id){
   const c=DB.comments.find(x=>x.id===id);if(!c)return;
+  _writtenAt['data/comments.json']=Date.now();
   c.pinned=!c.pinned;
   DB.comments=await writeMerge('data/comments.json',DB.comments);
   loadComments(curWork.id);toast(c.pinned?'已置顶':'已取消置顶');
@@ -639,6 +644,7 @@ async function sendComment(parentId,inputEl){
     const inp=inputEl||document.getElementById('cmtInput');const text=inp.value.trim();if(!text)return;
     lastAction=now;
     const c={id:nextId(),workId:curWork.id,parentId:parentId||null,user:me.name,avatar:me.avatar||'',text,likes:[],time:Date.now()};
+    _writtenAt['data/comments.json']=Date.now(); // mark before local push so the poller won't overwrite our new comment with stale data
     DB.comments.push(c);
     if(parentId){const parent=DB.comments.find(x=>x.id===parentId);if(parent)notify(parent.user,me.name+' 回复了你的评论: '+text,curWork.id);}
     else notify(curWork.author,me.name+' 评论了你的作品《'+curWork.title+'》',curWork.id);
@@ -651,6 +657,7 @@ async function sendComment(parentId,inputEl){
 async function likeCmt(id){
   if(!me)return openLogin(false);
   const c=DB.comments.find(x=>x.id===id);if(!c)return;
+  _writtenAt['data/comments.json']=Date.now();
   c.likes=c.likes||[];const i=c.likes.indexOf(me.name);
   if(i>=0)c.likes.splice(i,1);else{c.likes.push(me.name);notify(c.user,me.name+' 赞了你的评论',c.workId);}
   DB.comments=await writeMerge('data/comments.json',DB.comments);
@@ -711,6 +718,7 @@ async function writeMessages(){
 }
 async function sendChat(){
   const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return;
+  _writtenAt['data/messages.json']=Date.now();
   DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text:encStr(text),image:'',read:false,time:Date.now()});
   await writeMessages();openChat(curChatWith);
 }
@@ -723,6 +731,7 @@ async function recallMsg(id){
 async function sendChatImage(inp){
   const f=inp.files[0];if(!f)return;toast('上传图片...');
   const url=await ghUploadFile(Date.now()+'_c.jpg',await readFileAsDataURL(f));
+  _writtenAt['data/messages.json']=Date.now();
   DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text:'',image:url,read:false,time:Date.now()});
   await writeMessages();openChat(curChatWith);
 }
@@ -863,6 +872,8 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         // skip keys written within last 8s: their CDN purge may not be settled yet, keep local fresh copy
         if(_writtenAt[path]&&Date.now()-_writtenAt[path]<8000)continue;
         const fresh=await ghRead(path);
+        // re-check write protection AFTER the read: a write may have started while we were fetching, don't clobber it
+        if(_writtenAt[path]&&Date.now()-_writtenAt[path]<8000)continue;
         if(fresh){DB[k]=fresh;localStorage.setItem('xi_'+k,JSON.stringify(fresh));}
       }
       // re-anchor current user after users.json refresh (new registrations appear on other devices)
