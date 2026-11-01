@@ -874,7 +874,18 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         const fresh=await ghRead(path);
         // re-check write protection AFTER the read: a write may have started while we were fetching, don't clobber it
         if(_writtenAt[path]&&Date.now()-_writtenAt[path]<8000)continue;
-        if(fresh){DB[k]=fresh;localStorage.setItem('xi_'+k,JSON.stringify(fresh));}
+        if(!fresh)continue;
+        // append-only collections are MERGED (this device's in-flight rows win, server rows that are new to us are added)
+        // instead of wholesale replacement — otherwise a stale per-node raw CDN copy wipes a comment/message we just sent
+        if(k==='comments'||k==='messages'||k==='danmu'||k==='notifs'){
+          const map={};
+          (DB[k]||[]).forEach(x=>{if(x&&x.id!==undefined)map[x.id]=x;});
+          fresh.forEach(x=>{if(x&&x.id!==undefined&&!map[x.id])map[x.id]=x;});
+          DB[k]=Object.values(map);
+        } else {
+          DB[k]=fresh;
+        }
+        localStorage.setItem('xi_'+k,JSON.stringify(DB[k]));
       }
       // re-anchor current user after users.json refresh (new registrations appear on other devices)
       // if not found yet (raw CDN may lag a just-written registration), KEEP the local me — never force-logout on stale data
