@@ -236,7 +236,9 @@ function renderNav(){
 }
 function openMenu(){
   const items=[['我的主页',()=>openProfile()],['消息/私信',()=>openMessages()],['观看历史',()=>openHistory()]];
-  me.level=1000;if(me.isAdmin)items.push(['管理后台',()=>openAdmin()]);
+  if(me.isAdmin)me.level=1000; // 仅管理员强制满级，普通用户保持真实等级
+  if(me.isAdmin)items.push(['管理后台',()=>openAdmin()]);
+  if(!me.isAdmin&&me.level<1&&!me.quizPassed)items.push(['新手答题(升到1级)',()=>startQuiz()]);
   items.push(['退出登录',()=>{localStorage.removeItem('xi_user');me=null;renderNav();go('home');loadHome();}]);
   openModal(`<h2>${esc(me.name)} · LV${me.level}</h2>`+items.map(([t,f],i)=>`<div style="padding:12px;border-bottom:1px solid #f1f2f3;cursor:pointer" onclick="closeModal();_m[${i}]()">${t}</div>`).join(''));
   window._m=items.map(x=>x[1]);
@@ -444,6 +446,7 @@ async function act(a){
   if(a==='coin'&&!w.coins.includes(me.name))w.coins.push(me.name);
   if(a==='fav'){const i=w.favs.indexOf(me.name);if(i>=0)w.favs.splice(i,1);else w.favs.push(me.name);toast(w.favs.includes(me.name)?'已收藏':'已取消收藏');}
   await ghWrite('data/works.json',DB.works,'互动');
+  if(a==='like'&&w.likes.includes(me.name))await ghWrite('data/notifs.json',DB.notifs,'点赞通知').catch(()=>{});
   document.getElementById('cLike').textContent=w.likes.length;document.getElementById('cCoin').textContent=w.coins.length;const f=document.getElementById('cFav');if(f)f.textContent=w.favs.length;
 }
 function reportWork(){
@@ -762,7 +765,7 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
   // auto-refresh data every 5s without reloading page
   setInterval(async()=>{
     try{
-      for(const k of ['works','comments','notifs','messages']){
+      for(const k of ['works','comments','notifs','messages','reports','viewers']){
         const path=DATA_FILES[k];
         // skip keys written within last 8s: their CDN purge may not be settled yet, keep local fresh copy
         if(_writtenAt[path]&&Date.now()-_writtenAt[path]<8000)continue;
@@ -777,6 +780,13 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         else if(unread>0)renderNav();
       }
       if(curWork){
+        // keep current user marked as "watching" and persist periodically so others see them live
+        DB.viewers=DB.viewers||[];
+        const uid=me?me.name:'guest';
+        DB.viewers=DB.viewers.filter(v=>!(v.workId===curWork.id&&v.user===uid));
+        DB.viewers.push({workId:curWork.id,user:uid,time:Date.now()});
+        window._pollN=(window._pollN||0)+1;
+        if(window._pollN%10===0)ghWrite('data/viewers.json',DB.viewers,'在线').catch(()=>{});
         const w=DB.works.find(x=>x.id===curWork.id);
         if(w){
           curPlayCount=w.playCount;curLikes=w.likes;curCoins=w.coins;curFavs=w.favs;
