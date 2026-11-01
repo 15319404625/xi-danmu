@@ -142,7 +142,7 @@ th{background:#fafbfc;color:#61666d}
 <div class="cats" id="cats"></div>
 
 <div class="page show" id="page-home">
-  <div class="banner"><h1>鸽子视频观看站</h1><p>看视频、发弹幕、交鸽子朋友</p></div>
+  <div class="banner"><h1>鸽子视频观看站</h1><p>看视频、发弹幕、交鸽子朋友</p><div style="margin-top:8px;font-size:12px;opacity:.75" id="verTag">版本加载中...</div></div>
   <div class="grid" id="homeGrid"></div>
 </div>
 <div class="page" id="page-detail"></div>
@@ -216,8 +216,16 @@ async function hashPw(p){const buf=await crypto.subtle.digest('SHA-256',new Text
 function expForLevel(L){return L*(L+1)*5;}
 function addExp(name,amt){const u=DB.users.find(x=>x.name===name);if(!u)return;u.exp=(u.exp||0)+amt;let l=0;while(l<1000&&u.exp>=expForLevel(l+1))l++;u.level=l;}
 function nextId(){return Date.now()+Math.floor(Math.random()*1000);}
+const APP_VERSION='v7'; // bump to force clearing stale browser cache of old data
 async function loadDB(){
   const keys=Object.keys(DATA_FILES);
+  // if browser cached data from an older app version, discard it so we start from server
+  try{
+    if(localStorage.getItem('xi_ver')!==APP_VERSION){
+      keys.forEach(k=>localStorage.removeItem('xi_'+k));
+      localStorage.setItem('xi_ver',APP_VERSION);
+    }
+  }catch(e){}
   const arr=await Promise.all(keys.map(k=>ghRead(DATA_FILES[k])));
   keys.forEach((k,i)=>DB[k]=arr[i]||[]);
   if(!DB.works.find(w=>w.title==='欢迎来到我自制的网站'))DB.works.unshift({id:nextId(),type:'post',title:'欢迎来到我自制的网站',content:'欢迎来到我自制的网站，欢迎大家使用',images:[],category:'life',author:'管理员账号',authorId:1,playCount:0,likes:[],coins:[],createdAt:Date.now()});
@@ -336,7 +344,7 @@ function workCard(w){
   const thumb=w.type==='video'?(w.cover?`<img src="${w.cover}">`:(w.video?`<video src="${w.video}" muted></video>`:`<div class="playico">▶</div>`)):((w.images||[]).length?`<img src="${w.images[0]}">`:`<div class="playico" style="font-size:24px">文</div>`);
   return `<div class="card" onclick="openWork(${w.id})"><div class="thumb">${thumb}<div class="stats"><span>▶ ${w.playCount||0}</span><span>💬 ${dmN}</span></div></div><div class="body"><div class="title"><span class="tag-type">${w.type==='video'?'视频':'图文'}</span>${esc(w.title)}</div><div class="meta"><a href="javascript:void(0)" onclick="event.stopPropagation();showUser('${esc(w.author)}')" style="cursor:pointer">${esc(w.author)}${adminBadge(w.author)}</a> · ${(w.likes||[]).length}赞 · ${cmN}评</div></div></div>`;
 }
-async function loadHome(){loadCats();let list=[...DB.works].sort((a,b)=>b.createdAt-a.createdAt);if(activeCat!=='all')list=list.filter(w=>w.category===activeCat);document.getElementById('homeGrid').innerHTML=list.length?list.map(workCard).join(''):'<div class="empty">暂无内容</div>';}
+async function loadHome(){const vt=document.getElementById('verTag');if(vt)vt.textContent='版本 '+APP_VERSION+' · 已是最新';loadCats();let list=[...DB.works].sort((a,b)=>b.createdAt-a.createdAt);if(activeCat!=='all')list=list.filter(w=>w.category===activeCat);document.getElementById('homeGrid').innerHTML=list.length?list.map(workCard).join(''):'<div class="empty">暂无内容</div>';}
 function doSearch(q){
   q=(q||document.getElementById('searchInput').value).trim().toLowerCase();
   if(!q)return loadHome();
