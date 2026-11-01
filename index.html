@@ -184,18 +184,25 @@ function ghPurge(path){
   // tell jsDelivr to drop its cache for this path so all users see the latest immediately
   try{fetch(`https://purge.jsdelivr.net/gh/${GH_USER}/${GH_REPO}@${GH_BRANCH}/${path}`).catch(()=>{});}catch(e){}
 }
+// global write queue: serialize all ghWrite calls so concurrent writes never race the same file (GitHub 409)
+let __writeQ=Promise.resolve();
 async function ghWrite(path,obj,msg,retry){
-  retry=retry||0;
-  let sha=null;
-  try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}`,{headers:{Authorization:'token '+TOKEN}});if(r.ok)sha=(await r.json()).sha;}catch(e){}
-  const body=JSON.stringify(obj);
-  const res=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({message:msg,content:btoa(unescape(encodeURIComponent(body))),branch:GH_BRANCH,...(sha?{sha}:{})})});
-  if(!res.ok){
-    if(res.status===409&&retry<3){await new Promise(r=>setTimeout(r,500));return ghWrite(path,obj,msg,retry+1);}
-    throw new Error('保存失败 '+res.status);
-  }
-  _writtenAt[path]=Date.now();
-  ghPurge(path);
+  const run=async()=>{
+    retry=retry||0;
+    let sha=null;
+    try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}`,{headers:{Authorization:'token '+TOKEN}});if(r.ok)sha=(await r.json()).sha;}catch(e){}
+    const body=JSON.stringify(obj);
+    const res=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({message:msg,content:btoa(unescape(encodeURIComponent(body))),branch:GH_BRANCH,...(sha?{sha}:{})})});
+    if(!res.ok){
+      if(res.status===409&&retry<3){await new Promise(r=>setTimeout(r,500));return ghWrite(path,obj,msg,retry+1);}
+      throw new Error('保存失败 '+res.status);
+    }
+    _writtenAt[path]=Date.now();
+    ghPurge(path);
+  };
+  const p=__writeQ.then(run,run);
+  __writeQ=p.catch(()=>{});
+  return p;
 }
 // merge-write arrays: pull latest server copy, merge by id (local wins), write back.
 // Prevents one user's write from erasing another user's newly added rows.
@@ -274,6 +281,8 @@ async function deleteAccount(){
   if(!me)return;
   if(me.isAdmin)return toast('管理员账号不可注销');
   if(!confirm('确定要注销账号「'+me.name+'」吗？\n将永久删除你的账号、作品、评论、弹幕、私信、历史等所有数据，且不可恢复！'))return;
+  toast('正在注销账号，请稍候...');
+  await __writeQ.catch(()=>{}); // drain pending writes first so none resurrects the account
   const name=me.name;
   DB.users=DB.users.filter(u=>u.name!==name);
   DB.works=DB.works.filter(w=>w.author!==name);
@@ -285,7 +294,7 @@ async function deleteAccount(){
   DB.history=DB.history.filter(h=>h.user!==name);
   DB.reports=DB.reports.filter(r=>r.reporter!==name);
   DB.viewers=DB.viewers.filter(v=>v.user!==name);
-  toast('正在注销账号，请稍候...');
+  let fail='';
   try{
     await Promise.all([
       ghWrite('data/users.json',DB.users,'注销 '+name),
@@ -299,10 +308,11 @@ async function deleteAccount(){
       ghWrite('data/reports.json',DB.reports,'注销 '+name),
       ghWrite('data/viewers.json',DB.viewers,'注销 '+name),
     ]);
-  }catch(e){toast('注销出错: '+e.message);return;}
-  localStorage.removeItem('xi_user');
+  }catch(e){fail=e.message;}
+  // always log out locally even if some server writes failed (retry next open)
+  try{localStorage.removeItem('xi_user');localStorage.removeItem('xi_users');}catch(e){}
   me=null;renderNav();closeModal();go('home');loadHome();
-  toast('账号已注销');
+  toast(fail?('账号已注销（部分数据清理失败: '+fail+'）'):'账号已注销');
 }
 function openLogin(isReg){
   openModal(`<h2>${isReg?'注册':'登录'}</h2><label>用户名</label><input id="auName"><label>密码</label><input id="auPass" type="password"><div class="actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-pink" onclick="doLogin(${isReg})">${isReg?'注册':'登录'}</button></div>`);
