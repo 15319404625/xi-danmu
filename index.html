@@ -281,6 +281,8 @@ function deleteAccount(){
   if(!me)return;
   if(me.isAdmin)return toast('管理员账号不可注销');
   confirmAction('确定要注销账号「'+esc(me.name)+'」吗？<br>将永久删除你的账号、作品、评论、弹幕、私信、历史等所有数据，且不可恢复！',(async()=>{
+  window.__deleting=true; // pause the poll loop so a stale fetch can't resurrect filtered data mid-delete
+  for(const k in DATA_FILES)_writtenAt[DATA_FILES[k]]=Date.now();
   toast('正在注销账号，请稍候...');
   await __writeQ.catch(()=>{}); // drain pending writes first so none resurrects the account
   const name=me.name;
@@ -313,6 +315,7 @@ function deleteAccount(){
   try{localStorage.removeItem('xi_user');localStorage.removeItem('xi_users');}catch(e){}
   me=null;renderNav();closeModal();go('home');loadHome();
   toast(fail?('账号已注销（部分数据清理失败: '+fail+'）'):'账号已注销');
+  window.__deleting=false;
   })());
 }
 function openLogin(isReg){
@@ -871,6 +874,7 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
   }
   // auto-refresh data every 5s without reloading page
   setInterval(async()=>{
+    if(window.__deleting)return; // account deletion in progress: pause polling to avoid resurrecting filtered data
     try{
       for(const k of ['works','comments','notifs','messages','reports','viewers','users','follows']){
         const path=DATA_FILES[k];
