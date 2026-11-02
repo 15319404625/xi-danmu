@@ -517,7 +517,7 @@ function endQuiz(){
 function loadCats(){document.getElementById('cats').innerHTML=CATS.map(([v,n])=>`<span class="${v===activeCat?'active':''}" onclick="activeCat='${v}';loadCats();loadHome()">${n}</span>`).join('');}
 function workCard(w){
   const dmN=DB.danmu.filter(d=>d.workId===w.id).length,cmN=DB.comments.filter(c=>c.workId===w.id).length;
-  const thumb=w.type==='video'?(w.cover?`<img src="${w.cover}">`:(w.video?`<video src="${w.video}" muted></video>`:`<div class="playico">▶</div>`)):((w.images||[]).length?`<img src="${w.images[0]}">`:`<div class="playico" style="font-size:24px">文</div>`);
+  const thumb=w.type==='video'?(w.cover?`<img src="${w.cover}" loading="lazy" decoding="async">`:(w.video?`<video src="${w.video}" muted preload="metadata"></video>`:`<div class="playico">▶</div>`)):((w.images||[]).length?`<img src="${w.images[0]}" loading="lazy" decoding="async">`:`<div class="playico" style="font-size:24px">文</div>`);
   return `<div class="card" onclick="openWork(${w.id})"><div class="thumb">${thumb}<div class="stats"><span>▶ ${w.playCount||0}</span><span>💬 ${dmN}</span></div></div><div class="body"><div class="title"><span class="tag-type">${w.type==='video'?'视频':'图文'}</span>${esc(w.title)}</div><div class="meta"><a href="javascript:void(0)" onclick="event.stopPropagation();showUser('${esc(w.author)}')" style="cursor:pointer">${esc(w.author)}${adminBadge(w.author)}</a> · ${(w.likes||[]).length}赞 · ${cmN}评</div></div></div>`;
 }
 async function loadHome(){const vt=document.getElementById('verTag');if(vt)vt.textContent='版本 '+APP_VERSION+' · 已是最新';loadCats();let list=[...DB.works].sort((a,b)=>b.createdAt-a.createdAt);if(activeCat!=='all')list=list.filter(w=>w.category===activeCat);document.getElementById('homeGrid').innerHTML=list.length?list.map(workCard).join(''):'<div class="empty">暂无内容</div>';}
@@ -553,27 +553,35 @@ async function doUpload(){
         const dataUrl=await readFileAsDataURL(vf);
         setP('2/3 上传视频到仓库...');
         video=await ghUploadFile(Date.now()+'_'+vf.name,dataUrl);
-        setP('3/3 生成封面...');
-        // auto capture frame at 0.01s
-        try{
-          const v=document.createElement('video');v.src=video;v.muted=true;v.currentTime=0.01;
-          await new Promise(r=>{v.onloadedmetadata=r;v.onerror=r;});
-          await new Promise(r=>{v.onseeked=r;v.onerror=r;});
-          const c=document.createElement('canvas');c.width=v.videoWidth||640;c.height=v.videoHeight||360;
-          c.getContext('2d').drawImage(v,0,0,c.width,c.height);
-          cover=await ghUploadFile(Date.now()+'_cover.jpg',c.toDataURL('image/jpeg',0.7));
-        }catch(e){}
-        // if user chose a cover, override
-        const cf=document.getElementById('upCover').files[0];if(cf)cover=await ghUploadFile(Date.now()+'_c.jpg',await readFileAsDataURL(cf));
+        // custom cover takes priority -> skip auto frame capture (saves one slow upload)
+        const cf=document.getElementById('upCover').files[0];
+        if(cf){
+          setP('3/3 上传封面...');
+          cover=await ghUploadFile(Date.now()+'_c.jpg',await readFileAsDataURL(cf));
+        }else{
+          setP('3/3 生成封面...');
+          try{
+            const v=document.createElement('video');v.src=video;v.muted=true;v.currentTime=0.01;
+            await new Promise(r=>{v.onloadedmetadata=r;v.onerror=r;});
+            await new Promise(r=>{v.onseeked=r;v.onerror=r;});
+            const c=document.createElement('canvas');c.width=v.videoWidth||640;c.height=v.videoHeight||360;
+            c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+            cover=await ghUploadFile(Date.now()+'_cover.jpg',c.toDataURL('image/jpeg',0.7));
+          }catch(e){}
+        }
       } else {video=document.getElementById('upVideoUrl').value.trim();}
     } else {
-      setP('上传图片(可选)...');
-      for(const f of document.getElementById('upImages').files)images.push(await ghUploadFile(Date.now()+'_'+f.name,await readFileAsDataURL(f)));
+      setP('并发上传图片(多线程)...');
+      const files=[...(document.getElementById('upImages').files||[])];
+      if(files.length)images=await Promise.all(files.map(f=>ghUploadFile(Date.now()+'_'+f.name,readFileAsDataURL(f))));
     }
     _writtenAt['data/works.json']=Date.now();
     DB.works.unshift({id:nextId(),type:window._utype,title,content:document.getElementById('upContent').value,category:document.getElementById('upCat').value,video,cover,images,author:me.name,authorId:me.id,playCount:0,likes:[],coins:[],favs:[],createdAt:Date.now()});
-    DB.works=await writeMerge('data/works.json',DB.works);
-    addExp(me.name,window._utype==='video'?50:10);await ghWrite('data/users.json',DB.users,'经验');
+    setP('写库并发布...');
+    await Promise.all([
+      writeMerge('data/works.json',DB.works),
+      (addExp(me.name,window._utype==='video'?50:10),ghWrite('data/users.json',DB.users,'经验')),
+    ]);
     closeModal();toast('发布成功！');loadHome();go('home');
   }catch(e){toast('发布失败: '+e.message);}
 }
@@ -835,13 +843,15 @@ async function sendChat(){
   const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return;
   _writtenAt['data/messages.json']=Date.now();
   DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text:encStr(text),image:'',read:false,time:Date.now()});
-  await writeMessages();openChat(curChatWith);
+  openChat(curChatWith); // render instantly, persist in background so it shows immediately
+  writeMessages().catch(()=>{});
 }
 async function recallMsg(id){
-  if(!confirm('撤回这条消息？'))return;
   const m=DB.messages.find(x=>x.id===id);if(!m)return;
+  _writtenAt['data/messages.json']=Date.now(); // guard against poll overwriting local recall
   m.text=encStr('[已撤回]');m.recalled=true; // mark, not delete, so merge stays safe
-  await writeMessages();openChat(curChatWith);
+  openChat(curChatWith); // show instantly without waiting for server
+  writeMessages().catch(()=>{});
 }
 async function sendChatImage(inp){
   const f=inp.files[0];if(!f)return;toast('上传图片...');
