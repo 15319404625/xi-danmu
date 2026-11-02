@@ -132,7 +132,7 @@ th{background:#fafbfc;color:#61666d}
 </head>
 <body>
 <div style="background:linear-gradient(90deg,#FB7299,#00AEEC);color:#fff;text-align:center;padding:6px;font-size:13px">网站更新啦！请按 Ctrl+Shift+R 强制刷新获取最新版本</div><div class="nav">
-  <div class="logo" onclick="go('home')">鸽子视频</div><button class="btn btn-ghost" onclick="toggleDark()" style="padding:4px 10px">🌙</button>
+  <div class="logo" onclick="go('home')">鸽子视频</div><button class="btn btn-ghost" onclick="openGomoku()" style="padding:4px 10px">五子棋</button><button class="btn btn-ghost" onclick="toggleDark()" style="padding:4px 10px">🌙</button>
   <div class="search"><input id="searchInput" placeholder="搜索"><button onclick="doSearch()">搜索</button></div>
   <div class="right">
     <button class="upload-btn" onclick="openUpload()">+</button>
@@ -237,6 +237,98 @@ function encStr(s){try{return btoa(unescape(encodeURIComponent(s))).split('').re
 function decStr(s){try{if(typeof s!=='string')return '';let r=s.split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)-(i%7))).join('');return decodeURIComponent(escape(atob(r.split('').reverse().join(''))));}catch(e){return '';}}
 async function toggleDark(){document.body.classList.toggle('dark');localStorage.setItem('dark',document.body.classList.contains('dark')?'1':'0');}
 if(localStorage.getItem('dark')==='1')document.body.classList.add('dark');
+// ===== 五子棋 · 与 AI 对战（AI 攻防双评估，超级难） =====
+let gomo=null;const GOMO_DIRS=[[1,0],[0,1],[1,1],[1,-1]];
+function openGomoku(){
+  openModal(`<div style="text-align:center">
+    <h3 style="margin:0 0 6px">五子棋 · 你执黑先手，AI 执白</h3>
+    <div style="margin-bottom:8px">
+      <button class="btn btn-ghost" onclick="gomoReset()" style="margin-right:6px">重新开始</button>
+      <span id="gomoMsg" style="color:#FB7299;font-weight:600"></span>
+    </div>
+    <canvas id="gomoCv" width="450" height="450" style="background:#f5e6c8;border-radius:10px;cursor:pointer;max-width:92vw"></canvas>
+    <div style="font-size:12px;color:#888;margin-top:6px">点击棋盘落子，先连成五子者胜</div>
+  </div>`);
+  gomoInit();
+  const cv=document.getElementById('gomoCv');
+  if(cv){cv.onclick=gomoClick;gomoMsg('轮到你，点击棋盘落子');}
+}
+function gomoInit(){gomo={b:Array.from({length:15},()=>Array(15).fill(0)),over:false,last:null};gomoDraw();}
+function gomoReset(){if(!gomo)return;gomoInit();gomoMsg('轮到你，点击棋盘落子');}
+function gomoMsg(t){const el=document.getElementById('gomoMsg');if(el)el.textContent=t;}
+function gomoClick(ev){
+  if(!gomo||gomo.over)return;
+  const cv=document.getElementById('gomoCv');if(!cv)return;
+  const r=cv.getBoundingClientRect(),cell=30;
+  const x=Math.round((ev.clientX-r.left)/cell-0.5),y=Math.round((ev.clientY-r.top)/cell-0.5);
+  if(x<0||x>14||y<0||y>14||gomo.b[y][x])return;
+  gomo.b[y][x]=1;gomo.last={x,y};gomoDraw();
+  if(gomoWin(1)){gomo.over=true;gomoMsg('🎉 你赢了！点击「重新开始」再来一局');return;}
+  gomoMsg('AI 思考中...');
+  setTimeout(()=>{const m=gomoAiBest();if(!m||!gomo||gomo.over)return;gomo.b[m.y][m.x]=2;gomo.last=m;gomoDraw();if(gomoWin(2)){gomo.over=true;gomoMsg('😈 AI 赢了！它太强了，再来一局？');return;}gomoMsg('轮到你');},60);
+}
+function gomoWin(p){
+  const b=gomo.b;
+  for(let y=0;y<15;y++)for(let x=0;x<15;x++){
+    if(b[y][x]!==p)continue;
+    for(const [dx,dy] of GOMO_DIRS){
+      let n=1;for(let s=1;s<5;s++){const nx=x+dx*s,ny=y+dy*s;if(nx>14||ny>14||b[ny][nx]!==p)break;n++;}
+      if(n>=5)return true;
+    }
+  }
+  return false;
+}
+function gomoScore(b,x,y,player){
+  let best=0;
+  for(const [dx,dy] of GOMO_DIRS){
+    let cnt=1,open=0;
+    for(let s=1;s<=4;s++){const nx=x+dx*s,ny=y+dy*s;if(nx<0||nx>14||ny<0||ny>14)break;if(b[ny][nx]===player)cnt++;else{if(b[ny][nx]===0)open++;break;}}
+    for(let s=1;s<=4;s++){const nx=x-dx*s,ny=y-dy*s;if(nx<0||nx>14||ny<0||ny>14)break;if(b[ny][nx]===player)cnt++;else{if(b[ny][nx]===0)open++;break;}}
+    let v=0;
+    if(cnt>=5)v=100000;
+    else if(cnt===4)v=open>0?12000:1200;
+    else if(cnt===3)v=open===2?1500:(open>0?250:20);
+    else if(cnt===2)v=open===2?180:(open>0?25:3);
+    else if(cnt===1)v=open>0?6:0;
+    if(v>best)best=v;
+  }
+  return best;
+}
+function gomoAiBest(){
+  let best=null,bestScore=-1;
+  for(let y=0;y<15;y++)for(let x=0;x<15;x++){
+    if(gomo.b[y][x])continue;
+    const atk=gomoScore(gomo.b,x,y,2);
+    const def=gomoScore(gomo.b,x,y,1);
+    let s=atk;
+    if(def>=12000)s=def+2;            // 必须堵对方成五/活四
+    else if(def>=1500)s=Math.max(s,def+1); // 堵对方活三/冲四
+    else s+=def*0.85;                 // 常规防守
+    if(s>bestScore){bestScore=s;best={x,y};}
+  }
+  return best;
+}
+function gomoDraw(){
+  const cv=document.getElementById('gomoCv');if(!cv)return;
+  const ctx=cv.getContext('2d'),cell=30,N=15;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#f5e6c8';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle='#8a6d3b';ctx.lineWidth=1;
+  for(let i=0;i<N;i++){
+    ctx.beginPath();ctx.moveTo(cell/2,cell/2+i*cell);ctx.lineTo(cv.width-cell/2,cell/2+i*cell);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cell/2+i*cell,cell/2);ctx.lineTo(cell/2+i*cell,cv.height-cell/2);ctx.stroke();
+  }
+  // 星位
+  ctx.fillStyle='#8a6d3b';
+  [[3,3],[11,3],[3,11],[11,11],[7,7]].forEach(([sx,sy])=>{ctx.beginPath();ctx.arc(cell/2+sx*cell,cell/2+sy*cell,3,0,Math.PI*2);ctx.fill();});
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const v=gomo.b[y][x];if(!v)continue;
+    ctx.beginPath();ctx.arc(cell/2+x*cell,cell/2+y*cell,cell*0.42,0,Math.PI*2);
+    ctx.fillStyle=v===1?'#111':'#fefefe';ctx.fill();
+    if(v===2){ctx.strokeStyle='#bbb';ctx.lineWidth=1;ctx.stroke();}
+  }
+  if(gomo&&gomo.last){const {x,y}=gomo.last;ctx.beginPath();ctx.arc(cell/2+x*cell,cell/2+y*cell,3,0,Math.PI*2);ctx.fillStyle='#FB7299';ctx.fill();}
+}
 async function hashPw(p){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 function expForLevel(L){return L*(L+1)*5;}
 function addExp(name,amt){const u=DB.users.find(x=>x.name===name);if(!u)return;u.exp=(u.exp||0)+amt;let l=0;while(l<1000&&u.exp>=expForLevel(l+1))l++;u.level=l;}
