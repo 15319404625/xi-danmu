@@ -277,10 +277,10 @@ function openMenu(){
   openModal(`<h2>${esc(me.name)} · LV${me.level}</h2>`+items.map(([t,f],i)=>`<div style="padding:12px;border-bottom:1px solid #f1f2f3;cursor:pointer" onclick="closeModal();_m[${i}]()">${t}</div>`).join(''));
   window._m=items.map(x=>x[1]);
 }
-async function deleteAccount(){
+function deleteAccount(){
   if(!me)return;
   if(me.isAdmin)return toast('管理员账号不可注销');
-  if(!confirm('确定要注销账号「'+me.name+'」吗？\n将永久删除你的账号、作品、评论、弹幕、私信、历史等所有数据，且不可恢复！'))return;
+  confirmAction('确定要注销账号「'+esc(me.name)+'」吗？<br>将永久删除你的账号、作品、评论、弹幕、私信、历史等所有数据，且不可恢复！',(async()=>{
   toast('正在注销账号，请稍候...');
   await __writeQ.catch(()=>{}); // drain pending writes first so none resurrects the account
   const name=me.name;
@@ -313,6 +313,7 @@ async function deleteAccount(){
   try{localStorage.removeItem('xi_user');localStorage.removeItem('xi_users');}catch(e){}
   me=null;renderNav();closeModal();go('home');loadHome();
   toast(fail?('账号已注销（部分数据清理失败: '+fail+'）'):'账号已注销');
+  })());
 }
 function openLogin(isReg){
   openModal(`<h2>${isReg?'注册':'登录'}</h2><label>用户名</label><input id="auName"><label>密码</label><input id="auPass" type="password"><div class="actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-pink" onclick="doLogin(${isReg})">${isReg?'注册':'登录'}</button></div>`);
@@ -823,6 +824,7 @@ async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('d
 
 function openModal(h){document.getElementById('modalBox').innerHTML=h;document.getElementById('mask').classList.add('show');}
 function closeModal(){document.getElementById('mask').classList.remove('show');}
+function confirmAction(msg,onOk){openModal(`<h2 style="margin-bottom:12px">确认操作</h2><p style="line-height:1.7;color:#303133;margin-bottom:18px">${msg}</p><div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-pink" onclick="(window.__cfok||function(){})()">确认</button></div>`);window.__cfok=onOk;}
 document.getElementById('mask').onclick=e=>{if(e.target.id==='mask')closeModal();};
 document.addEventListener('contextmenu',e=>{if(e.target.closest('video'))e.preventDefault();});
 document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.preventDefault();});
