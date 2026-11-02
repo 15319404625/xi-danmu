@@ -313,9 +313,12 @@ function deleteAccount(){
   }catch(e){fail=e.message;}
   // always log out locally even if some server writes failed (retry next open)
   try{localStorage.removeItem('xi_user');localStorage.removeItem('xi_users');}catch(e){}
+  try{for(const k of Object.keys(DATA_FILES))localStorage.removeItem('xi_'+k);}catch(e){}
   me=null;renderNav();closeModal();go('home');loadHome();
   toast(fail?('账号已注销（部分数据清理失败: '+fail+'）'):'账号已注销');
   window.__deleting=false;
+  // hard reload guarantees a clean logged-out state (no stale in-memory session survives)
+  setTimeout(()=>location.reload(),600);
   })());
 }
 function openLogin(isReg){
