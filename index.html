@@ -295,6 +295,9 @@ function gomoScore(b,x,y,player){
   return best;
 }
 function gomoAiBest(){
+  let empty=true;
+  for(let y=0;y<15&&empty;y++)for(let x=0;x<15;x++)if(gomo.b[y][x]){empty=false;break;}
+  if(empty)return {x:7,y:7};
   let best=null,bestScore=-1;
   for(let y=0;y<15;y++)for(let x=0;x<15;x++){
     if(gomo.b[y][x])continue;
