@@ -172,7 +172,7 @@ function adminBadge(name){
 
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',2200);}
 function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));document.getElementById('page-'+p).classList.add('show');window.scrollTo(0,0);if(!location.hash.startsWith('#/work/'))history.replaceState(null,'','#/'+p);}
+function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));document.getElementById('page-'+p).classList.add('show');window.scrollTo(0,0);if(location.hash!=='#/'+p)history.replaceState(null,'','#/'+p);}
 
 let _writtenAt={}; // path -> last write ts, to protect against stale CDN reads
 async function ghRead(path){
@@ -528,11 +528,13 @@ function reportWork(){
   if(!me)return openLogin(false);
   const reason=prompt('举报原因：');if(!reason)return;
   DB.reports=DB.reports||[];
+  _writtenAt['data/reports.json']=Date.now();
   DB.reports.push({id:nextId(),workId:curWork.id,workTitle:curWork.title,reporter:me.name,reason,status:'pending',time:Date.now()});
   ghWrite('data/reports.json',DB.reports,'举报').then(()=>toast('举报已提交，管理员会处理'));
 }
 async function resolveReport(id,action){
   const r=DB.reports.find(x=>x.id===id);if(!r)return;
+  _writtenAt['data/reports.json']=Date.now();
   if(action==='remove'){_writtenAt['data/works.json']=Date.now();DB.works=DB.works.filter(w=>w.id!==r.workId);DB.works=await writeMerge('data/works.json',DB.works,new Set([r.workId]));}
   r.status=action==='remove'?'已删除':'已放行';
   await ghWrite('data/reports.json',DB.reports,'处理举报');
@@ -743,6 +745,7 @@ function openProfile(){if(!me)return openLogin(false);go('profile');
 async function upAvatar(inp){
   const f=inp.files[0];if(!f)return;toast('上传中...');
   const url=await ghUploadFile(Date.now()+'_a.jpg',await readFileAsDataURL(f));
+  _writtenAt['data/users.json']=Date.now();
   me.avatar=url;
   // wait until the avatar file is actually loadable on CDN (new file may take a moment to propagate)
   for(let i=0;i<12;i++){
@@ -877,7 +880,7 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         if(!fresh)continue;
         // append-only collections are MERGED (this device's in-flight rows win, server rows that are new to us are added)
         // instead of wholesale replacement — otherwise a stale per-node raw CDN copy wipes a comment/message we just sent
-        if(k==='comments'||k==='messages'||k==='danmu'||k==='notifs'){
+        if(k==='comments'||k==='messages'||k==='danmu'||k==='notifs'||k==='reports'||k==='viewers'){
           const map={};
           (DB[k]||[]).forEach(x=>{if(x&&x.id!==undefined)map[x.id]=x;});
           fresh.forEach(x=>{if(x&&x.id!==undefined&&!map[x.id])map[x.id]=x;});
@@ -903,6 +906,12 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         const uid=me?me.name:'guest';
         DB.viewers=DB.viewers.filter(v=>!(v.workId===curWork.id&&v.user===uid));
         DB.viewers.push({workId:curWork.id,user:uid,time:Date.now()});
+        // periodically persist the current viewer so other devices see us live; prune stale entries first
+        if(Date.now()-(window.__lastViewPersist||0)>30000){
+          window.__lastViewPersist=Date.now();
+          DB.viewers=DB.viewers.filter(v=>Date.now()-(v.time||0)<120000);
+          ghWrite('data/viewers.json',DB.viewers,'在线').catch(()=>{});
+        }
         const w=DB.works.find(x=>x.id===curWork.id);
         if(w){
           curPlayCount=w.playCount;curLikes=w.likes;curCoins=w.coins;curFavs=w.favs;
