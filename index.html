@@ -350,7 +350,7 @@ function gomoDraw(){
 }
 async function hashPw(p){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 function expForLevel(L){return L*(L+1)*5;}
-function addExp(name,amt){const u=DB.users.find(x=>x.name===name);if(!u)return;u.exp=(u.exp||0)+amt;let l=0;while(l<1000&&u.exp>=expForLevel(l+1))l++;u.level=l;}
+function addExp(name,amt){const u=DB.users.find(x=>x.name===name);if(!u)return;u.exp=(u.exp||0)+amt;if(u.isAdmin){u.level=1000;return;}let l=0;while(l<1000&&u.exp>=expForLevel(l+1))l++;u.level=l;}
 function nextId(){return Date.now()+Math.floor(Math.random()*1000);}
 const APP_VERSION='v7'; // bump to force clearing stale browser cache of old data
 async function loadDB(){
@@ -442,6 +442,37 @@ function deleteAccount(){
   // hard reload guarantees a clean logged-out state (no stale in-memory session survives)
   setTimeout(()=>location.reload(),600);
   })());
+}
+async function adminDeleteUser(name){
+  if(!confirm('确定删除账号「'+name+'」及其全部数据？不可恢复！'))return;
+  const base={};
+  for(const k of ['users','works','comments','danmu','follows','messages','notifs','history','reports','viewers']){
+    try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${DATA_FILES[k]}`,{headers:{Authorization:'token '+TOKEN}});base[k]=r.ok?JSON.parse(decodeURIComponent(escape(atob((await r.json()).content)))):(Array.isArray(DB[k])?DB[k]:[]);}catch(e){base[k]=Array.isArray(DB[k])?DB[k]:[];}
+  }
+  base.users=base.users.filter(u=>u.name!==name);
+  base.works=base.works.filter(w=>w.author!==name);
+  base.comments=base.comments.filter(c=>c.user!==name);
+  base.danmu=base.danmu.filter(d=>d.user!==name);
+  base.messages=base.messages.filter(m=>m.from!==name&&m.to!==name);
+  base.notifs=base.notifs.filter(n=>n.to!==name&&n.from!==name);
+  base.follows=base.follows.filter(f=>f.follower!==name).map(f=>({...f,following:(f.following||[]).filter(x=>x!==name)}));
+  base.history=base.history.filter(h=>h.user!==name);
+  base.reports=base.reports.filter(r=>r.reporter!==name&&r.user!==name);
+  base.viewers=base.viewers.filter(v=>v.user!==name);
+  await Promise.all([
+    ghWrite('data/users.json',base.users,'删账号 '+name),
+    ghWrite('data/works.json',base.works,'删账号 '+name),
+    ghWrite('data/comments.json',base.comments,'删账号 '+name),
+    ghWrite('data/danmaku.json',base.danmu,'删账号 '+name),
+    ghWrite('data/messages.json',base.messages,'删账号 '+name),
+    ghWrite('data/notifs.json',base.notifs,'删账号 '+name),
+    ghWrite('data/follows.json',base.follows,'删账号 '+name),
+    ghWrite('data/history.json',base.history,'删账号 '+name),
+    ghWrite('data/reports.json',base.reports,'删账号 '+name),
+    ghWrite('data/viewers.json',base.viewers,'删账号 '+name),
+  ]);
+  for(const k of Object.keys(base))DB[k]=base[k];
+  toast('已删除账号 '+name);
 }
 function openLogin(isReg){
   openModal(`<h2>${isReg?'注册':'登录'}</h2><label>用户名</label><input id="auName"><label>密码</label><input id="auPass" type="password"><div class="actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-pink" onclick="doLogin(${isReg})">${isReg?'注册':'登录'}</button></div>`);
@@ -672,12 +703,23 @@ function reportWork(){
   DB.reports=DB.reports||[];
   _writtenAt['data/reports.json']=Date.now();
   DB.reports.push({id:nextId(),workId:curWork.id,workTitle:curWork.title,reporter:me.name,reason,status:'pending',time:Date.now()});
-  ghWrite('data/reports.json',DB.reports,'举报').then(()=>toast('举报已提交，管理员会处理'));
+  writeSafe('data/reports.json',DB.reports,r=>r.id,'举报').then(()=>toast('举报已提交，管理员会处理'));
+}
+function reportUser(name){
+  if(!me)return openLogin(false);
+  const reason=prompt('举报原因：');if(!reason)return;
+  DB.reports=DB.reports||[];
+  _writtenAt['data/reports.json']=Date.now();
+  DB.reports.push({id:nextId(),type:'user',user:name,reporter:me.name,reason,status:'pending',time:Date.now()});
+  writeSafe('data/reports.json',DB.reports,r=>r.id,'举报账号').then(()=>toast('举报已提交，管理员会处理'));
 }
 async function resolveReport(id,action){
   const r=DB.reports.find(x=>x.id===id);if(!r)return;
   _writtenAt['data/reports.json']=Date.now();
-  if(action==='remove'){_writtenAt['data/works.json']=Date.now();DB.works=DB.works.filter(w=>w.id!==r.workId);DB.works=await writeMerge('data/works.json',DB.works,new Set([r.workId]));}
+  if(action==='remove'){
+    if(r.type==='user'){await adminDeleteUser(r.user);}
+    else{_writtenAt['data/works.json']=Date.now();DB.works=DB.works.filter(w=>w.id!==r.workId);DB.works=await writeMerge('data/works.json',DB.works,new Set([r.workId]));}
+  }
   r.status=action==='remove'?'已删除':'已放行';
   await ghWrite('data/reports.json',DB.reports,'处理举报');
   toast('已'+r.status);renderAdmin(document.getElementById('adminSearch')?.value||'');
@@ -839,7 +881,7 @@ function showUser(name){
   const u=DB.users.find(x=>x.name===name);
   const works=DB.works.filter(w=>w.author===name).sort((a,b)=>b.createdAt-a.createdAt);
   const following=DB.follows.find(f=>f.follower===me?.name)?.following||[];
-  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${u&&u.avatar?`<img src="${u.avatar}">`:esc(name[0])}</div><div><h2>${esc(name)}</h2><div style="color:#61666d">${u?('LV'+(u.level||0)):''} · ${works.length}个作品</div></div><div style="margin-left:auto">${me&&me.name!==name?`<button class="btn btn-ghost" onclick="toggleFollow('${esc(name)}');showUser('${esc(name)}')">${following.includes(name)?'已关注':'+ 关注'}</button><button class="btn btn-pink" onclick="openChatWith('${esc(name)}')">私信</button>`:''}</div></div><div class="grid">${works.map(workCard).join('')||'<div class="empty">TA还没发布作品</div>'}</div>`;
+  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${u&&u.avatar?`<img src="${u.avatar}">`:esc(name[0])}</div><div><h2>${esc(name)}</h2><div style="color:#61666d">${u?('LV'+(u.level||0)):''} · ${works.length}个作品</div></div><div style="margin-left:auto">${me&&me.name!==name?`<button class="btn btn-ghost" onclick="toggleFollow('${esc(name)}');showUser('${esc(name)}')">${following.includes(name)?'已关注':'+ 关注'}</button><button class="btn btn-pink" onclick="openChatWith('${esc(name)}')">私信</button><button class="btn btn-ghost" onclick="reportUser('${esc(name)}')">举报</button>${me.isAdmin?`<button class="btn btn-ghost danger" onclick="adminDeleteUser('${esc(name)}')">删除账号</button>`:''}`:''}</div></div><div class="grid">${works.map(workCard).join('')||'<div class="empty">TA还没发布作品</div>'}</div>`;
 }
 function openChat(withWho){curChatWith=withWho;
   // mark incoming messages from withWho as read (merge-write so other devices' messages are kept)
@@ -969,7 +1011,7 @@ function renderAdmin(kw){
 第十六条 最终解释权归鸽子视频观看站所有。
 </div>
 <h3 style="margin-top:16px">举报 <span style="color:var(--pink)">${(DB.reports||[]).filter(r=>r.status==='pending').length}待处理</span></h3>
-    <table><tr><th>作品</th><th>举报人</th><th>原因</th><th>状态</th><th>操作</th></tr>${(DB.reports||[]).map(r=>`<tr><td><a href="javascript:void(0)" onclick="openWork(${r.workId})" style="color:var(--pink)">${esc(r.workTitle)}</a></td><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${r.status}</td><td>${r.status==='pending'?`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="resolveReport(${r.id},'remove')">下架删除</button>`:''}</td></tr>`).join('')||'<tr><td colspan=5>暂无举报</td></tr>'}</table>`;
+    <table><tr><th>作品</th><th>举报人</th><th>原因</th><th>状态</th><th>操作</th></tr>${(DB.reports||[]).map(r=>`<tr><td>${r.type==='user'?`<a href="javascript:void(0)" onclick="showUser('${esc(r.user)}')" style="color:var(--pink)">账号：${esc(r.user)}</a>`:`<a href="javascript:void(0)" onclick="openWork(${r.workId})" style="color:var(--pink)">${esc(r.workTitle)}</a>`}</td><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${r.status}</td><td>${r.status==='pending'?`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="resolveReport(${r.id},'remove')">下架删除</button>`:''}</td></tr>`).join('')||'<tr><td colspan=5>暂无举报</td></tr>'}</table>`;
 }
 async function setLv(id,lv){const u=DB.users.find(x=>x.id===id);if(!u)return;if(u.isAdmin){u.level=1000;}else{u.level=Math.max(0,Math.min(1000,lv));}await writeSafe('data/users.json',DB.users,u=>u.id,'调等级');renderAdmin(document.getElementById('adminSearch')?.value||'');toast('已调整为LV'+u.level);}
 async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('data/danmaku.json',DB.danmu,'删弹幕');renderAdmin(document.getElementById('adminSearch')?.value||'');}
