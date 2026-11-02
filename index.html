@@ -220,6 +220,22 @@ async function writeMerge(path, arr, removedIds){
   await ghWrite(path,merged,'同步');
   return merged;
 }
+// Safe write: reconcile against the authoritative server copy before writing, so a possibly
+// incomplete local array can never erase server records (root cause of data loss).
+async function writeSafe(path, arr, keyFn, msg){
+  let server=[];
+  try{
+    const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${path}`,{headers:{Authorization:'token '+TOKEN}});
+    if(r.ok)server=JSON.parse(decodeURIComponent(escape(atob((await r.json()).content))));
+  }catch(e){}
+  const map={};
+  (server||[]).forEach(x=>{if(x&&typeof x==='object'){const k=keyFn(x);if(k!=null&&k!=='')map[k]=x;}});
+  (arr||[]).forEach(x=>{if(x&&typeof x==='object'){const k=keyFn(x);if(k!=null&&k!=='')map[k]=x;}});
+  const merged=Object.values(map);
+  _writtenAt[path]=Date.now();
+  await ghWrite(path,merged,msg||'同步');
+  return merged;
+}
 async function ghUploadFile(filename,dataUri){
   const [meta,b64]=dataUri.split(',');
   const br=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/blobs`,{method:'POST',headers:{Authorization:'token '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({content:b64,encoding:'base64'})});
@@ -434,9 +450,14 @@ async function doLogin(isReg){
   const name=document.getElementById('auName').value.trim(),pass=document.getElementById('auPass').value;
   if(!name||!pass)return toast('请填写完整');
   if(isReg){
-    if(DB.users.find(u=>u.name===name))return toast('此用户名已被使用，请换一个吧');
-    DB.users.push({id:nextId(),name:name,pass:await hashPw(pass),avatar:'',level:0,exp:0,isAdmin:false});
-    await ghWrite('data/users.json',DB.users,'注册 '+name);
+    // pull latest server users first (authoritative) so duplicate check & write never erase others
+    let sv=[];
+    try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/data/users.json`,{headers:{Authorization:'token '+TOKEN}});if(r.ok)sv=JSON.parse(decodeURIComponent(escape(atob((await r.json()).content))));}catch(e){}
+    const merged=Array.isArray(sv)&&sv.length?sv:(Array.isArray(DB.users)?DB.users:[]);
+    if(merged.find(u=>u&&u.name===name))return toast('此用户名已被使用，请换一个吧');
+    merged.push({id:nextId(),name:name,pass:await hashPw(pass),avatar:'',level:0,exp:0,isAdmin:false});
+    DB.users=merged;
+    await writeSafe('data/users.json',DB.users,u=>u.id,'注册 '+name);
     localStorage.setItem('xi_user',name);me=DB.users.find(u=>u.name===name);
     renderNav();closeModal();toast('注册成功！先通过新手答题升到1级吧');loadHome();startQuiz();
     return;
@@ -449,7 +470,7 @@ async function doLogin(isReg){
   // daily auto level up for non-admin
   if(me&&!me.isAdmin&&me.level<1000){
     const now=Date.now();const last=me.lastDaily||0;
-    if(now-last>=86400000){me.level=Math.min(1000,me.level+1);me.lastDaily=now;ghWrite('data/users.json',DB.users,'每日升级').catch(()=>{});}
+    if(now-last>=86400000){me.level=Math.min(1000,me.level+1);me.lastDaily=now;writeSafe('data/users.json',DB.users,u=>u.id,'每日升级').catch(()=>{});}
   }
 }
 
@@ -500,7 +521,7 @@ function endQuiz(){
   if(wrong.length===0){
     // all correct: level up to 1
     me.level=Math.max(me.level,1);if(!me.quizPassed){me.quizPassed=true;}
-    ghWrite('data/users.json',DB.users,'答题满分').catch(()=>{});
+    writeSafe('data/users.json',DB.users,u=>u.id,'答题满分').catch(()=>{});
     openModal(`<h2>🎉 满分通关</h2>
       <div style="margin:10px 0">太棒了！20 题全部答对，等级已升至 <b>LV1</b>。</div>
       <div style="background:#f1f2f3;padding:12px;border-radius:8px">你一共用了 <b>${Q.attempts}</b> 次就拿到了满分</div>
@@ -580,7 +601,7 @@ async function doUpload(){
     setP('写库并发布...');
     await Promise.all([
       writeMerge('data/works.json',DB.works),
-      (addExp(me.name,window._utype==='video'?50:10),ghWrite('data/users.json',DB.users,'经验')),
+      (addExp(me.name,window._utype==='video'?50:10),writeSafe('data/users.json',DB.users,u=>u.id,'经验')),
     ]);
     closeModal();toast('发布成功！');loadHome();go('home');
   }catch(e){toast('发布失败: '+e.message);}
@@ -596,12 +617,12 @@ async function openWork(id,skipCount){
   DB.viewers=DB.viewers||[];
   DB.viewers=DB.viewers.filter(v=>v.workId!==id||v.user!==(me?me.name:'guest'));
   DB.viewers.push({workId:id,user:me?me.name:'guest',time:Date.now()});
-  ghWrite('data/viewers.json',DB.viewers,'在线').catch(()=>{});
+  writeSafe('data/viewers.json',DB.viewers,v=>v.workId+':'+v.user,'在线').catch(()=>{});
     ghWrite('data/works.json',DB.works,'播放+1').catch(()=>{});
     if(me){
       DB.history=DB.history.filter(h=>!(h.user===me.name&&h.workId===id));
       DB.history.unshift({user:me.name,workId:id,time:Date.now()});
-      ghWrite('data/history.json',DB.history,'历史').catch(()=>{});
+      writeSafe('data/history.json',DB.history,hh=>hh.user+':'+hh.workId,'历史').catch(()=>{});
     }
   }catch(e){toast('打开失败: '+e.message);}
 }
@@ -642,7 +663,7 @@ async function act(a){
   if(a==='coin'&&!w.coins.includes(me.name))w.coins.push(me.name);
   if(a==='fav'){const i=w.favs.indexOf(me.name);if(i>=0)w.favs.splice(i,1);else w.favs.push(me.name);toast(w.favs.includes(me.name)?'已收藏':'已取消收藏');}
   await writeMerge('data/works.json',DB.works);
-  if(a==='like'&&w.likes.includes(me.name))await ghWrite('data/notifs.json',DB.notifs,'点赞通知').catch(()=>{});
+  if(a==='like'&&w.likes.includes(me.name))await writeSafe('data/notifs.json',DB.notifs,nn=>nn.id,'点赞通知').catch(()=>{});
   document.getElementById('cLike').textContent=w.likes.length;document.getElementById('cCoin').textContent=w.coins.length;const f=document.getElementById('cFav');if(f)f.textContent=w.favs.length;
 }
 function reportWork(){
@@ -667,7 +688,7 @@ async function toggleFollow(name){
   _writtenAt['data/follows.json']=Date.now();_writtenAt['data/notifs.json']=Date.now();
   let f=DB.follows.find(f=>f.follower===me.name);if(!f){f={follower:me.name,following:[]};DB.follows.push(f);}
   const i=f.following.indexOf(name);if(i>=0)f.following.splice(i,1);else{f.following.push(name);notify(name,me.name+' 关注了你',null);}
-  await ghWrite('data/follows.json',DB.follows,'关注');await ghWrite('data/notifs.json',DB.notifs,'通知');
+  await writeSafe('data/follows.json',DB.follows,ff=>ff.follower,'关注');await writeSafe('data/notifs.json',DB.notifs,nn=>nn.id,'通知');
   document.getElementById('btnFollow').textContent=f.following.includes(name)?'已关注':'+ 关注';
 }
 function notify(to,text,workId,fromUser){if(!to||to===me?.name)return;_writtenAt['data/notifs.json']=Date.now();DB.notifs.push({id:nextId(),to,text,workId:workId||null,from:fromUser||(me?me.name:'系统'),read:false,time:Date.now()});}
@@ -727,7 +748,7 @@ async function sendDanmu(){
     _writtenAt['data/danmaku.json']=Date.now();
     DB.danmu.push({id:nextId(),workId:curWork.id,user:me.name,avatar:me.avatar||'',text,color:selColor,t:vt,time:Date.now()});
     DB.danmu=await writeMerge('data/danmaku.json',DB.danmu);
-    addExp(me.name,2);await ghWrite('data/users.json',DB.users,'经验');
+    addExp(me.name,2);await writeSafe('data/users.json',DB.users,u=>u.id,'经验');
     inp.value='';toast('弹幕已发送');
   }catch(e){toast('发送失败: '+e.message);}
 }
@@ -772,8 +793,8 @@ async function sendComment(parentId,inputEl){
     if(parentId){const parent=DB.comments.find(x=>x.id===parentId);if(parent)notify(parent.user,me.name+' 回复了你的评论: '+text,curWork.id);}
     else notify(curWork.author,me.name+' 评论了你的作品《'+curWork.title+'》',curWork.id);
     DB.comments=await writeMerge('data/comments.json',DB.comments);
-    await ghWrite('data/notifs.json',DB.notifs,'通知');
-    addExp(me.name,3);await ghWrite('data/users.json',DB.users,'经验');
+    await writeSafe('data/notifs.json',DB.notifs,nn=>nn.id,'通知');
+    addExp(me.name,3);await writeSafe('data/users.json',DB.users,u=>u.id,'经验');
     inp.value='';loadComments(curWork.id);toast('评论成功');
   }catch(e){toast('评论失败: '+e.message);}
 }
@@ -784,7 +805,7 @@ async function likeCmt(id){
   c.likes=c.likes||[];const i=c.likes.indexOf(me.name);
   if(i>=0)c.likes.splice(i,1);else{c.likes.push(me.name);notify(c.user,me.name+' 赞了你的评论',c.workId);}
   DB.comments=await writeMerge('data/comments.json',DB.comments);
-  await ghWrite('data/notifs.json',DB.notifs,'通知');
+  await writeSafe('data/notifs.json',DB.notifs,nn=>nn.id,'通知');
   loadComments(curWork.id);
 }
 
@@ -799,7 +820,7 @@ function renderMessages(){
 }
 async function openNotif(id){
   const n=DB.notifs.find(x=>x.id===id);if(!n)return;
-  n.read=true;await ghWrite('data/notifs.json',DB.notifs,'已读');
+  n.read=true;await writeSafe('data/notifs.json',DB.notifs,nn=>nn.id,'已读');
   renderNav();
   if(n.workId){await openWork(n.workId);toast(n.text);}
   else if(n.from){showUser(n.from);toast(n.text);}
@@ -876,7 +897,7 @@ async function upAvatar(inp){
       if(loaded)break;}catch(e){}
     await new Promise(r=>setTimeout(r,600));
   }
-  await ghWrite('data/users.json',DB.users,'头像');
+  await writeSafe('data/users.json',DB.users,u=>u.id,'头像');
   toast('头像已更新');renderNav();
   if(location.hash.includes('profile'))openProfile();
 }
@@ -941,7 +962,7 @@ function renderAdmin(kw){
 <h3 style="margin-top:16px">举报 <span style="color:var(--pink)">${(DB.reports||[]).filter(r=>r.status==='pending').length}待处理</span></h3>
     <table><tr><th>作品</th><th>举报人</th><th>原因</th><th>状态</th><th>操作</th></tr>${(DB.reports||[]).map(r=>`<tr><td><a href="javascript:void(0)" onclick="openWork(${r.workId})" style="color:var(--pink)">${esc(r.workTitle)}</a></td><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${r.status}</td><td>${r.status==='pending'?`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="resolveReport(${r.id},'remove')">下架删除</button>`:''}</td></tr>`).join('')||'<tr><td colspan=5>暂无举报</td></tr>'}</table>`;
 }
-async function setLv(id,lv){const u=DB.users.find(x=>x.id===id);if(!u)return;if(u.isAdmin){u.level=1000;}else{u.level=Math.max(0,Math.min(1000,lv));}await ghWrite('data/users.json',DB.users,'调等级');renderAdmin(document.getElementById('adminSearch')?.value||'');toast('已调整为LV'+u.level);}
+async function setLv(id,lv){const u=DB.users.find(x=>x.id===id);if(!u)return;if(u.isAdmin){u.level=1000;}else{u.level=Math.max(0,Math.min(1000,lv));}await writeSafe('data/users.json',DB.users,u=>u.id,'调等级');renderAdmin(document.getElementById('adminSearch')?.value||'');toast('已调整为LV'+u.level);}
 async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('data/danmaku.json',DB.danmu,'删弹幕');renderAdmin(document.getElementById('adminSearch')?.value||'');}
 
 function openModal(h){document.getElementById('modalBox').innerHTML=h;document.getElementById('mask').classList.add('show');}
@@ -966,7 +987,7 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
     if(me.lastDay!==today){
       me.lastDay=today;
       if(me.level<1000){me.level++;me.exp=(me.exp||0)+expForLevel(me.level);toast('每日签到：等级提升至LV'+me.level);}
-      ghWrite('data/users.json',DB.users,'每日升级').catch(()=>{});
+      writeSafe('data/users.json',DB.users,u=>u.id,'每日升级').catch(()=>{});
     }
   }
   // restore from localStorage cache for instant render
@@ -1035,7 +1056,7 @@ document.addEventListener('dragstart',e=>{if(e.target.closest('video,img'))e.pre
         if(Date.now()-(window.__lastViewPersist||0)>30000){
           window.__lastViewPersist=Date.now();
           DB.viewers=DB.viewers.filter(v=>Date.now()-(v.time||0)<120000);
-          ghWrite('data/viewers.json',DB.viewers,'在线').catch(()=>{});
+          writeSafe('data/viewers.json',DB.viewers,v=>v.workId+':'+v.user,'在线').catch(()=>{});
         }
         const w=DB.works.find(x=>x.id===curWork.id);
         if(w){
