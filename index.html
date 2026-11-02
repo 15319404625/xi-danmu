@@ -781,6 +781,14 @@ async function togglePin(id){
   DB.comments=await writeMerge('data/comments.json',DB.comments);
   loadComments(curWork.id);toast(c.pinned?'已置顶':'已取消置顶');
 }
+async function recallCmt(id){
+  const c=DB.comments.find(x=>x.id===id);if(!c||!me||c.user!==me.name)return;
+  _writtenAt['data/comments.json']=Date.now();
+  c.recalled=true;c.text='[已撤回]';
+  loadComments(curWork.id);
+  await writeMerge('data/comments.json',DB.comments);
+}
+
 async function sendComment(parentId,inputEl){
   try{
     if(!me)return openLogin(false);
@@ -864,22 +872,23 @@ async function sendChat(){
   const inp=document.getElementById('chatInput');const text=inp.value.trim();if(!text)return;
   _writtenAt['data/messages.json']=Date.now();
   DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text:encStr(text),image:'',read:false,time:Date.now()});
-  openChat(curChatWith); // render instantly, persist in background so it shows immediately
-  writeMessages().catch(()=>{});
+  openChat(curChatWith); // render instantly, then persist BEFORE returning so refresh can't lose it
+  await writeMessages();
 }
 async function recallMsg(id){
   const m=DB.messages.find(x=>x.id===id);if(!m)return;
   _writtenAt['data/messages.json']=Date.now(); // guard against poll overwriting local recall
   m.text=encStr('[已撤回]');m.recalled=true; // mark, not delete, so merge stays safe
-  openChat(curChatWith); // show instantly without waiting for server
-  writeMessages().catch(()=>{});
+  openChat(curChatWith); // show instantly, then persist before returning
+  await writeMessages();
 }
 async function sendChatImage(inp){
   const f=inp.files[0];if(!f)return;toast('上传图片...');
   const url=await ghUploadFile(Date.now()+'_c.jpg',await readFileAsDataURL(f));
   _writtenAt['data/messages.json']=Date.now();
   DB.messages.push({id:nextId(),from:me.name,to:curChatWith,text:'',image:url,read:false,time:Date.now()});
-  await writeMessages();openChat(curChatWith);
+  openChat(curChatWith);
+  await writeMessages();
 }
 
 function openProfile(){if(!me)return openLogin(false);go('profile');
