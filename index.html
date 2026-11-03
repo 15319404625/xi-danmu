@@ -708,7 +708,7 @@ function renderDetail(w){
       <button class="act-btn" id="btnFav" onclick="act('fav')">⭐ <span id="cFav">${(w.favs||[]).length}</span></button>
       <button class="act-btn" onclick="navigator.clipboard.writeText(location.href).then(()=>toast('链接已复制'))">↗ 分享</button>
       <button class="act-btn" onclick="openChatWith('${esc(w.author)}')">💬 私信</button>
-      ${me?`<button class="act-btn" onclick="reportWork()">🚩 举报</button>`:''}
+      ${me?`<button class="act-btn" onclick="reportWork()">🚩 举报</button>`:''}${me&&(me.isAdmin||me.name===w.author)?`<button class="act-btn danger" onclick="delWork(${w.id})">🗑 删除</button>`:''}
     </div></div>
     ${w.type==='video'?`<div style="display:flex;gap:8px;padding:6px 0;align-items:center">
 <select onchange="document.querySelector('video').playbackRate=parseFloat(this.value)" style="padding:4px;border-radius:6px;border:1px solid #ddd">
