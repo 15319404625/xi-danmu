@@ -112,7 +112,7 @@ th{background:#fafbfc;color:#61666d}
 .chat-list{border-right:1px solid #f1f2f3;overflow-y:auto}
 .chat-list .item{padding:12px 16px;cursor:pointer;display:flex;gap:10px;align-items:center}
 .chat-list .item:hover,.chat-list .item.active{background:#f6f7f8}
-.chat-win{display:flex;flex-direction:column}
+.chat-win{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .chat-msgs{flex:1;overflow-y:auto;padding:16px;min-height:0}
 .chat-msg{margin-bottom:12px;display:flex;gap:8px}
 .chat-msg.me{flex-direction:row-reverse}
@@ -185,6 +185,7 @@ th{background:#fafbfc;color:#61666d}
 <script>
 const ENC_KEY="V2pKb2QxZ3hiM2hYUld4S1lsVnNlRlJGYkV0aE1VcEZZVWR3TTJSSVFsQlZNRVpUWWxWS2VGVXdhSGhrUkVKeVpWWndWMVozUFQwPQ==";
 const GH_USER="15319404625",GH_REPO="xi-danmu",GH_BRANCH="main";
+let fromReview=false;
 const TOKEN=atob(atob(atob(ENC_KEY)));
 const DATA_FILES={users:'data/users.json',works:'data/works.json',danmu:'data/danmaku.json',comments:'data/comments.json',follows:'data/follows.json',messages:'data/messages.json',history:'data/history.json',notifs:'data/notifs.json',reports:'data/reports.json',viewers:'data/viewers.json'};
 const CATS=[['all','全部'],['animation','动画'],['bangumi','番剧'],['game','游戏'],['knowledge','知识'],['tech','科技'],['music','音乐'],['dance','舞蹈'],['film','影视'],['life','生活'],['guichu','鬼畜'],['fashion','时尚'],['ent','娱乐'],['sports','运动']];
@@ -201,6 +202,9 @@ function adminBadge(name){
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',2200);}
 function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));document.getElementById('page-'+p).classList.add('show');window.scrollTo(0,0);if(location.hash!=='#/'+p)history.replaceState(null,'','#/'+p);}
+function openReview(name){fromReview=true;showUser(name);}
+function openReviewWork(id){fromReview=true;openWork(id);}
+function backReview(){fromReview=false;go('admin');const s=document.querySelector('#adminSearch');if(s)renderAdmin(s.value||'');}
 
 let _writtenAt={}; // path -> last write ts, to protect against stale CDN reads
 async function ghRead(path){
@@ -695,7 +699,7 @@ function renderDetail(w){
   const player=w.type==='video'
     ?`<div class="player-wrap" oncontextmenu="return false">${w.video?`<video src="${w.video}" controls autoplay controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false"></video>`:'<div style="color:#fff;text-align:center;padding-top:40%">无视频源</div>'}<div class="danmu-layer" id="danmuLayer"></div></div>`
     :`<div class="post-view"><h1>${esc(w.title)}</h1><div class="text">${esc(w.content)}</div>${(w.images||[]).map(i=>`<img src="${i}" oncontextmenu="return false">`).join('')}</div>`;
-  document.getElementById('page-detail').innerHTML=`<div class="detail" oncontextmenu="${w.type==='video'?'return false':''}"><div style="display:flex;gap:8px;margin-bottom:10px;align-items:center"><button class="btn btn-ghost" onclick="go('home');history.replaceState(null,'','#/')">返回</button><button class="btn btn-ghost" onclick="navigator.clipboard.writeText(location.href).then(()=>toast('链接已复制'))">复制链接</button><span style="color:#61666d;font-size:13px">ID:${w.id}</span></div>${player}
+  document.getElementById('page-detail').innerHTML=`<div class="detail" oncontextmenu="${w.type==='video'?'return false':''}"><div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">${me&&me.isAdmin&&fromReview?`<button class="btn btn-ghost" onclick="backReview()">← 返回到审核区</button>`:''}<button class="btn btn-ghost" onclick="go('home');history.replaceState(null,'','#/')">返回</button><button class="btn btn-ghost" onclick="navigator.clipboard.writeText(location.href).then(()=>toast('链接已复制'))">复制链接</button><span style="color:#61666d;font-size:13px">ID:${w.id}</span></div>${player}
     <div class="info-row"><div class="avatar" onclick="showUser('${esc(w.author)}')" style="cursor:pointer">${esc(w.author[0])}</div><div><div style="font-weight:700"><a href="javascript:void(0)" onclick="showUser('${esc(w.author)}')" style="cursor:pointer">${esc(w.author)}${adminBadge(w.author)}</a></div><div style="font-size:12px;color:#61666d">${w.playCount||0}播放</div></div>
     ${me&&me.name!==w.author?`<button class="btn btn-ghost" id="btnFollow" onclick="toggleFollow('${esc(w.author)}')">${isFollowing(w.author)?'已关注':'+ 关注'}</button>`:''}
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
@@ -915,7 +919,7 @@ function showUser(name){
   const u=DB.users.find(x=>x.name===name);
   const works=DB.works.filter(w=>w.author===name).sort((a,b)=>b.createdAt-a.createdAt);
   const following=DB.follows.find(f=>f.follower===me?.name)?.following||[];
-  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${u&&u.avatar?`<img src="${u.avatar}">`:esc(name[0])}</div><div><h2>${esc(name)}</h2><div style="color:#61666d">${u?('LV'+(u.level||0)):''} · ${works.length}个作品</div></div><div style="margin-left:auto">${me&&me.name!==name?`<button class="btn btn-ghost" onclick="toggleFollow('${esc(name)}');showUser('${esc(name)}')">${following.includes(name)?'已关注':'+ 关注'}</button><button class="btn btn-pink" onclick="openChatWith('${esc(name)}')">私信</button><button class="btn btn-ghost" onclick="reportUser('${esc(name)}')">举报</button>${me.isAdmin?`<button class="btn btn-ghost danger" onclick="banUser('${esc(name)}')">封号</button>`:''}`:''}</div></div><div class="grid">${works.map(workCard).join('')||'<div class="empty">TA还没发布作品</div>'}</div>`;
+  document.getElementById('page-profile').innerHTML=`${me&&me.isAdmin&&fromReview?`<div style="margin-bottom:10px"><button class="btn btn-ghost" onclick="backReview()">← 返回到审核区</button></div>`:''}<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${u&&u.avatar?`<img src="${u.avatar}">`:esc(name[0])}</div><div><h2>${esc(name)}</h2><div style="color:#61666d">${u?('LV'+(u.level||0)):''} · ${works.length}个作品</div></div><div style="margin-left:auto">${me&&me.name!==name?`<button class="btn btn-ghost" onclick="toggleFollow('${esc(name)}');showUser('${esc(name)}')">${following.includes(name)?'已关注':'+ 关注'}</button><button class="btn btn-pink" onclick="openChatWith('${esc(name)}')">私信</button><button class="btn btn-ghost" onclick="reportUser('${esc(name)}')">举报</button>${me.isAdmin?`<button class="btn btn-ghost danger" onclick="banUser('${esc(name)}')">封号</button>`:''}`:''}</div></div><div class="grid">${works.map(workCard).join('')||'<div class="empty">TA还没发布作品</div>'}</div>`;
 }
 function openChat(withWho){curChatWith=withWho;
   // mark incoming messages from withWho as read (merge-write so other devices' messages are kept)
@@ -968,7 +972,7 @@ async function sendChatImage(inp){
 }
 
 function openProfile(){if(!me)return openLogin(false);go('profile');
-  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div><div><h2>${esc(me.name)}</h2><div style="color:#61666d">LV${me.level}/1000 · 经验${me.exp} · ${DB.works.filter(w=>w.author===me.name).length}个作品</div></div><div style="margin-left:auto"><label class="btn btn-ghost" style="cursor:pointer">头像<input type="file" hidden accept="image/*" onchange="upAvatar(this)"></label></div></div><h3>我的作品</h3><div class="grid">${DB.works.filter(w=>w.author===me.name).sort((a,b)=>b.createdAt-a.createdAt).map(workCard).join('')||'<div class="empty">还没发布</div>'}</div>
+  document.getElementById('page-profile').innerHTML=`${me&&me.isAdmin&&fromReview?`<div style="margin-bottom:10px"><button class="btn btn-ghost" onclick="backReview()">← 返回到审核区</button></div>`:''}<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${me.avatar?`<img src="${me.avatar}">`:esc(me.name[0])}</div><div><h2>${esc(me.name)}</h2><div style="color:#61666d">LV${me.level}/1000 · 经验${me.exp} · ${DB.works.filter(w=>w.author===me.name).length}个作品</div></div><div style="margin-left:auto"><label class="btn btn-ghost" style="cursor:pointer">头像<input type="file" hidden accept="image/*" onchange="upAvatar(this)"></label></div></div><h3>我的作品</h3><div class="grid">${DB.works.filter(w=>w.author===me.name).sort((a,b)=>b.createdAt-a.createdAt).map(workCard).join('')||'<div class="empty">还没发布</div>'}</div>
 <h3 style="margin-top:20px">我的收藏</h3><div class="grid">${DB.works.filter(w=>(w.favs||[]).includes(me.name)).map(workCard).join('')||'<div class="empty">还没收藏</div>'}</div>`;
 }
 async function upAvatar(inp){
@@ -1019,7 +1023,7 @@ function renderAdmin(kw){
   document.getElementById('page-admin').innerHTML=`<h2 style="margin:10px 0">管理后台</h2>
     <h3>用户</h3>
     <input id="adminSearch" placeholder="搜索用户名..." value="${esc(kw)}" oninput="renderAdmin(this.value)" style="width:100%;padding:8px 12px;border:1px solid #e3e5e7;border-radius:8px;margin-bottom:10px">
-    <table><tr><th>用户</th><th>等级</th><th>经验</th><th>操作</th></tr>${users.map(u=>`<tr><td>${esc(u.name)}${u.isAdmin?' 👑':''}</td><td>LV${u.level}</td><td>${u.exp||0}</td><td><button class="mini" onclick="setLv(${u.id},${u.level+1})">升</button> <button class="mini" onclick="setLv(${u.id},${u.level-1})">降</button> <input type="number" min="0" max="1000" value="${u.level}" style="width:60px" onchange="setLv(${u.id},parseInt(this.value)||0)"></td></tr>`).join('')}</table>
+    <table><tr><th>用户</th><th>等级</th><th>经验</th><th>操作</th></tr>${users.map(u=>`<tr><td><a href="javascript:void(0)" onclick="showUser('${esc(u.name)}')" style="color:inherit">${esc(u.name)}${u.isAdmin?' 👑':''}</a></td><td>LV${u.level}</td><td>${u.exp||0}</td><td><button class="mini" onclick="setLv(${u.id},${u.level+1})">升</button> <button class="mini" onclick="setLv(${u.id},${u.level-1})">降</button> <input type="number" min="0" max="1000" value="${u.level}" style="width:60px" onchange="setLv(${u.id},parseInt(this.value)||0)"></td></tr>`).join('')}</table>
     <h3 style="margin-top:16px">弹幕</h3><table><tr><th>用户</th><th>内容</th><th>操作</th></tr>${DB.danmu.map(d=>`<tr><td>${esc(d.user)}</td><td>${esc(d.text)}</td><td><button class="mini danger" onclick="delDm(${d.id})">删</button></td></tr>`).join('')}</table>
     <h3 style="margin-top:16px">鸽子视频社区规则</h3><div style="background:#fff8f0;padding:16px;border-radius:8px;line-height:1.8;font-size:13px;max-height:300px;overflow-y:auto">
 <b>第一章 总则</b><br>
@@ -1045,7 +1049,7 @@ function renderAdmin(kw){
 第十六条 最终解释权归鸽子视频观看站所有。
 </div>
 <h3 style="margin-top:16px">封禁管理 <span style="color:var(--pink)">${DB.users.filter(u=>u.bannedUntil&&u.bannedUntil>Date.now()).length}个被封</span></h3><table><tr><th>用户</th><th>封至</th><th>剩余</th><th>原因</th><th>操作</th></tr>${DB.users.filter(u=>u.bannedUntil&&u.bannedUntil>Date.now()).map(u=>`<tr><td>${esc(u.name)}</td><td>${u.bannedUntil>4102444800000?'永久':new Date(u.bannedUntil).toLocaleDateString()}</td><td>${u.bannedUntil>4102444800000?'永久':Math.ceil((u.bannedUntil-Date.now())/86400000)+'天'}</td><td>${esc(u.banReason||'-')}</td><td><button class="mini" onclick="doUnban('${esc(u.name)}')">解封</button></td></tr>`).join('')||'<tr><td colspan=5>暂无封禁</td></tr>'}</table><h3 style="margin-top:16px">举报 <span style="color:var(--pink)">${(DB.reports||[]).filter(r=>r.status==='pending').length}待处理</span></h3>
-    <table><tr><th>作品</th><th>举报人</th><th>原因</th><th>状态</th><th>操作</th></tr>${(DB.reports||[]).map(r=>`<tr><td>${r.type==='user'?`<a href="javascript:void(0)" onclick="showUser('${esc(r.user)}')" style="color:var(--pink)">账号：${esc(r.user)}</a>`:`<a href="javascript:void(0)" onclick="openWork(${r.workId})" style="color:var(--pink)">${esc(r.workTitle)}</a>`}</td><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${r.status}</td><td>${r.status==='pending'?(r.type==='user'?`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="banUser('${esc(r.user)}')">封号</button>`:`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="resolveReport(${r.id},'remove')">下架删除</button>`):''}</td></tr>`).join('')||'<tr><td colspan=5>暂无举报</td></tr>'}</table>`;
+    <table><tr><th>作品</th><th>举报人</th><th>原因</th><th>状态</th><th>操作</th></tr>${(DB.reports||[]).map(r=>`<tr><td>${r.type==='user'?`<a href="javascript:void(0)" onclick="openReview('${esc(r.user)}')" style="color:var(--pink)">账号：${esc(r.user)}</a>`:`<a href="javascript:void(0)" onclick="openReviewWork(${r.workId})" style="color:var(--pink)">${esc(r.workTitle)}</a>`}</td><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${r.status}</td><td>${r.status==='pending'?(r.type==='user'?`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="banUser('${esc(r.user)}')">封号</button>`:`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="resolveReport(${r.id},'remove')">下架删除</button>`):''}</td></tr>`).join('')||'<tr><td colspan=5>暂无举报</td></tr>'}</table>`;
 }
 async function setLv(id,lv){const u=DB.users.find(x=>x.id===id);if(!u)return;if(u.isAdmin){u.level=1000;}else{u.level=Math.max(0,Math.min(1000,lv));}await writeSafe('data/users.json',DB.users,u=>u.id,'调等级');renderAdmin(document.getElementById('adminSearch')?.value||'');toast('已调整为LV'+u.level);}
 async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('data/danmaku.json',DB.danmu,'删弹幕');renderAdmin(document.getElementById('adminSearch')?.value||'');}
