@@ -276,7 +276,9 @@ function gomoClick(ev){
   if(!gomo||gomo.over)return;
   const cv=document.getElementById('gomoCv');if(!cv)return;
   const r=cv.getBoundingClientRect(),cell=30;
-  const x=Math.round((ev.clientX-r.left)/cell-0.5),y=Math.round((ev.clientY-r.top)/cell-0.5);
+  // map display pixels back to the 450px internal board so scaling (mobile 92vw) doesn't misplace moves
+  const px=(ev.clientX-r.left)/r.width*450,py=(ev.clientY-r.top)/r.height*450;
+  const x=Math.round(px/cell-0.5),y=Math.round(py/cell-0.5);
   if(x<0||x>14||y<0||y>14||gomo.b[y][x])return;
   gomo.b[y][x]=1;gomo.last={x,y};gomoDraw();
   if(gomoWin(1)){gomo.over=true;gomoMsg('🎉 你赢了！点击「重新开始」再来一局');return;}
