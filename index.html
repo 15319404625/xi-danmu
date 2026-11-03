@@ -735,6 +735,15 @@ async function act(a){
   if(a==='like'&&w.likes.includes(me.name))await writeSafe('data/notifs.json',DB.notifs,nn=>nn.id,'点赞通知').catch(()=>{});
   document.getElementById('cLike').textContent=w.likes.length;document.getElementById('cCoin').textContent=w.coins.length;const f=document.getElementById('cFav');if(f)f.textContent=w.favs.length;
 }
+async function delWork(id){
+  const w=DB.works.find(x=>x.id===id);if(!w)return;
+  if(!me||(me.name!==w.author&&!me.isAdmin))return toast('只有作者或管理员可删除');
+  if(!confirm('确定删除作品「'+w.title+'」？删除后不可恢复'))return;
+  _writtenAt['data/works.json']=Date.now();
+  DB.works=DB.works.filter(x=>x.id!==id);
+  DB.works=await writeMerge('data/works.json',DB.works,new Set([id]));
+  toast('作品已删除');go('home');
+}
 function reportWork(){
   if(!me)return openLogin(false);
   const reason=prompt('举报原因：');if(!reason)return;
