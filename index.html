@@ -127,7 +127,28 @@ th{background:#fafbfc;color:#61666d}
 .tabs2{display:flex;gap:18px;border-bottom:1px solid #e3e5e7;margin-bottom:16px}
 .tabs2 span{padding:10px 4px;cursor:pointer;color:#61666d}
 .tabs2 span.active{color:var(--pink);border-bottom:2px solid var(--pink);font-weight:700}
-@media(max-width:640px){.grid{grid-template-columns:repeat(2,1fr)}.chat-layout{grid-template-columns:1fr;height:70vh}}
+/* mobile bottom tab bar (hidden on desktop) */
+.tabbar{display:none}
+.tabbar>div{flex:1;text-align:center;padding:9px 0 11px;font-size:10px;color:#61666d;cursor:pointer;user-select:none;touch-action:manipulation}
+.tabbar>div span{display:block;font-size:11px;margin-top:2px}
+@media(max-width:640px){
+  .grid{grid-template-columns:repeat(2,1fr);padding:12px}
+  .chat-layout{grid-template-columns:1fr;height:70vh}
+  .nav{padding:0 10px;gap:8px;height:50px}
+  .nav .logo{font-size:14px}
+  .nav .search{max-width:34vw}
+  .nav .search button{display:none}
+  .page{padding:0 8px}
+  .cats{padding:0 12px;gap:14px;height:40px}
+  .tabbar{display:flex;position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.94);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(0,0,0,.06);z-index:60}
+  body{padding-bottom:58px}
+}
+@media(max-width:480px){
+  .grid{grid-template-columns:1fr}
+  .banner h1{font-size:20px}
+  .banner p{font-size:12px}
+  .act-btn,.btn,.upload-btn{min-height:38px;touch-action:manipulation}
+}
 </style>
 </head>
 <body>
@@ -150,6 +171,13 @@ th{background:#fafbfc;color:#61666d}
 <div class="page" id="page-admin"></div>
 <div class="page" id="page-board"></div>
 <div class="page" id="page-messages"></div>
+<div class="tabbar">
+  <div onclick="go('home')">🏠<span>首页</span></div>
+  <div onclick="openGomoku()">⚫<span>五子棋</span></div>
+  <div onclick="openUpload()">＋<span>发布</span></div>
+  <div onclick="openMessages()">🔔<span>消息</span></div>
+  <div onclick="go('profile')">👤<span>我的</span></div>
+</div>
 
 <div class="mask" id="mask"><div class="modal" id="modalBox"></div></div>
 <div class="toast" id="toast"></div>
