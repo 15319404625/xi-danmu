@@ -443,36 +443,36 @@ function deleteAccount(){
   setTimeout(()=>location.reload(),600);
   })());
 }
-async function adminDeleteUser(name){
-  if(!confirm('确定删除账号「'+name+'」及其全部数据？不可恢复！'))return;
-  const base={};
-  for(const k of ['users','works','comments','danmu','follows','messages','notifs','history','reports','viewers']){
-    try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${DATA_FILES[k]}`,{headers:{Authorization:'token '+TOKEN}});base[k]=r.ok?JSON.parse(decodeURIComponent(escape(atob((await r.json()).content)))):(Array.isArray(DB[k])?DB[k]:[]);}catch(e){base[k]=Array.isArray(DB[k])?DB[k]:[];}
-  }
-  base.users=base.users.filter(u=>u.name!==name);
-  base.works=base.works.filter(w=>w.author!==name);
-  base.comments=base.comments.filter(c=>c.user!==name);
-  base.danmu=base.danmu.filter(d=>d.user!==name);
-  base.messages=base.messages.filter(m=>m.from!==name&&m.to!==name);
-  base.notifs=base.notifs.filter(n=>n.to!==name&&n.from!==name);
-  base.follows=base.follows.filter(f=>f.follower!==name).map(f=>({...f,following:(f.following||[]).filter(x=>x!==name)}));
-  base.history=base.history.filter(h=>h.user!==name);
-  base.reports=base.reports.filter(r=>r.reporter!==name&&r.user!==name);
-  base.viewers=base.viewers.filter(v=>v.user!==name);
-  await Promise.all([
-    ghWrite('data/users.json',base.users,'删账号 '+name),
-    ghWrite('data/works.json',base.works,'删账号 '+name),
-    ghWrite('data/comments.json',base.comments,'删账号 '+name),
-    ghWrite('data/danmaku.json',base.danmu,'删账号 '+name),
-    ghWrite('data/messages.json',base.messages,'删账号 '+name),
-    ghWrite('data/notifs.json',base.notifs,'删账号 '+name),
-    ghWrite('data/follows.json',base.follows,'删账号 '+name),
-    ghWrite('data/history.json',base.history,'删账号 '+name),
-    ghWrite('data/reports.json',base.reports,'删账号 '+name),
-    ghWrite('data/viewers.json',base.viewers,'删账号 '+name),
-  ]);
-  for(const k of Object.keys(base))DB[k]=base[k];
-  toast('已删除账号 '+name);
+function banUser(name){
+  if(!me||!me.isAdmin)return;
+  openModal(`<h3 style="margin:0 0 10px">封禁账号 ${esc(name)}</h3><p style="margin:6px 0;color:#61666d">选择封禁时长：</p><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${[['1天',1],['3天',3],['7天',7],['30天',30],['365天',365],['永久',0]].map(([t,d])=>`<button class="btn btn-ghost" style="padding:6px 12px" onclick="closeModal();doBan('${esc(name)}',${d})">${t}</button>`).join('')}</div><input id="banReason" placeholder="封禁原因(可选)" style="width:100%;padding:8px 12px;border:1px solid #e3e5e7;border-radius:8px;box-sizing:border-box"><div style="margin-top:10px"><button class="btn btn-ghost" onclick="closeModal()">取消</button></div>`);
+}
+async function doBan(name,days){
+  const reason=document.getElementById('banReason').value.trim();
+  const until=days===0?4102444800000:(Date.now()+days*86400000);
+  let sv=[];
+  try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/data/users.json`,{headers:{Authorization:'token '+TOKEN}});if(r.ok)sv=JSON.parse(decodeURIComponent(escape(atob((await r.json()).content))));}catch(e){}
+  const merged=Array.isArray(sv)&&sv.length?sv:(Array.isArray(DB.users)?DB.users:[]);
+  const u=merged.find(x=>x&&x.name===name);
+  if(!u)return toast('用户不存在');
+  u.bannedUntil=until;u.banReason=reason||'违规封禁';
+  DB.users=merged;
+  await writeSafe('data/users.json',DB.users,uu=>uu.id,'封禁 '+name);
+  toast('已封禁 '+name+(days===0?'（永久）':(' '+days+'天')));
+  if(document.querySelector('.show'))showUser(name);
+  renderAdmin(document.getElementById('adminSearch')?.value||'');
+}
+async function doUnban(name){
+  if(!confirm('确定解封 '+name+'？'))return;
+  let sv=[];
+  try{const r=await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/data/users.json`,{headers:{Authorization:'token '+TOKEN}});if(r.ok)sv=JSON.parse(decodeURIComponent(escape(atob((await r.json()).content))));}catch(e){}
+  const merged=Array.isArray(sv)&&sv.length?sv:(Array.isArray(DB.users)?DB.users:[]);
+  const u=merged.find(x=>x&&x.name===name);if(!u)return toast('用户不存在');
+  u.bannedUntil=0;u.banReason='';
+  DB.users=merged;
+  await writeSafe('data/users.json',DB.users,uu=>uu.id,'解封 '+name);
+  toast('已解封 '+name);
+  renderAdmin(document.getElementById('adminSearch')?.value||'');
 }
 function openLogin(isReg){
   openModal(`<h2>${isReg?'注册':'登录'}</h2><label>用户名</label><input id="auName"><label>密码</label><input id="auPass" type="password"><div class="actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-pink" onclick="doLogin(${isReg})">${isReg?'注册':'登录'}</button></div>`);
@@ -495,6 +495,10 @@ async function doLogin(isReg){
   } else {
     const u=DB.users.find(x=>x.name===name);
     if(!u||u.pass!==await hashPw(pass))return toast('用户名或密码错误');
+    if(u.bannedUntil&&u.bannedUntil>Date.now()){
+      const left=Math.ceil((u.bannedUntil-Date.now())/86400000);
+      return toast(u.banReason?('账号已被封禁：'+u.banReason+(left>3650?'（永久）':'（剩'+left+'天）')):('账号已被封禁'+(left>3650?'（永久）':'（剩'+left+'天）')));
+    }
     localStorage.setItem('xi_user',name);me=u;
   }
   renderNav();closeModal();toast(isReg?'注册成功，已自动登录':'登录成功');loadHome();
@@ -717,7 +721,7 @@ async function resolveReport(id,action){
   const r=DB.reports.find(x=>x.id===id);if(!r)return;
   _writtenAt['data/reports.json']=Date.now();
   if(action==='remove'){
-    if(r.type==='user'){await adminDeleteUser(r.user);}
+    if(r.type==='user'){banUser(r.user);}
     else{_writtenAt['data/works.json']=Date.now();DB.works=DB.works.filter(w=>w.id!==r.workId);DB.works=await writeMerge('data/works.json',DB.works,new Set([r.workId]));}
   }
   r.status=action==='remove'?'已删除':'已放行';
@@ -881,7 +885,7 @@ function showUser(name){
   const u=DB.users.find(x=>x.name===name);
   const works=DB.works.filter(w=>w.author===name).sort((a,b)=>b.createdAt-a.createdAt);
   const following=DB.follows.find(f=>f.follower===me?.name)?.following||[];
-  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${u&&u.avatar?`<img src="${u.avatar}">`:esc(name[0])}</div><div><h2>${esc(name)}</h2><div style="color:#61666d">${u?('LV'+(u.level||0)):''} · ${works.length}个作品</div></div><div style="margin-left:auto">${me&&me.name!==name?`<button class="btn btn-ghost" onclick="toggleFollow('${esc(name)}');showUser('${esc(name)}')">${following.includes(name)?'已关注':'+ 关注'}</button><button class="btn btn-pink" onclick="openChatWith('${esc(name)}')">私信</button><button class="btn btn-ghost" onclick="reportUser('${esc(name)}')">举报</button>${me.isAdmin?`<button class="btn btn-ghost danger" onclick="adminDeleteUser('${esc(name)}')">删除账号</button>`:''}`:''}</div></div><div class="grid">${works.map(workCard).join('')||'<div class="empty">TA还没发布作品</div>'}</div>`;
+  document.getElementById('page-profile').innerHTML=`<div style="display:flex;gap:16px;align-items:center;background:#fff;padding:20px;border-radius:12px;margin-bottom:16px"><div class="avatar" style="width:64px;height:64px;font-size:24px">${u&&u.avatar?`<img src="${u.avatar}">`:esc(name[0])}</div><div><h2>${esc(name)}</h2><div style="color:#61666d">${u?('LV'+(u.level||0)):''} · ${works.length}个作品</div></div><div style="margin-left:auto">${me&&me.name!==name?`<button class="btn btn-ghost" onclick="toggleFollow('${esc(name)}');showUser('${esc(name)}')">${following.includes(name)?'已关注':'+ 关注'}</button><button class="btn btn-pink" onclick="openChatWith('${esc(name)}')">私信</button><button class="btn btn-ghost" onclick="reportUser('${esc(name)}')">举报</button>${me.isAdmin?`<button class="btn btn-ghost danger" onclick="banUser('${esc(name)}')">封号</button>`:''}`:''}</div></div><div class="grid">${works.map(workCard).join('')||'<div class="empty">TA还没发布作品</div>'}</div>`;
 }
 function openChat(withWho){curChatWith=withWho;
   // mark incoming messages from withWho as read (merge-write so other devices' messages are kept)
@@ -1010,8 +1014,8 @@ function renderAdmin(kw){
 第十五条 本站保留随时更新规则的权利。<br>
 第十六条 最终解释权归鸽子视频观看站所有。
 </div>
-<h3 style="margin-top:16px">举报 <span style="color:var(--pink)">${(DB.reports||[]).filter(r=>r.status==='pending').length}待处理</span></h3>
-    <table><tr><th>作品</th><th>举报人</th><th>原因</th><th>状态</th><th>操作</th></tr>${(DB.reports||[]).map(r=>`<tr><td>${r.type==='user'?`<a href="javascript:void(0)" onclick="showUser('${esc(r.user)}')" style="color:var(--pink)">账号：${esc(r.user)}</a>`:`<a href="javascript:void(0)" onclick="openWork(${r.workId})" style="color:var(--pink)">${esc(r.workTitle)}</a>`}</td><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${r.status}</td><td>${r.status==='pending'?`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="resolveReport(${r.id},'remove')">下架删除</button>`:''}</td></tr>`).join('')||'<tr><td colspan=5>暂无举报</td></tr>'}</table>`;
+<h3 style="margin-top:16px">封禁管理 <span style="color:var(--pink)">${DB.users.filter(u=>u.bannedUntil&&u.bannedUntil>Date.now()).length}个被封</span></h3><table><tr><th>用户</th><th>封至</th><th>剩余</th><th>原因</th><th>操作</th></tr>${DB.users.filter(u=>u.bannedUntil&&u.bannedUntil>Date.now()).map(u=>`<tr><td>${esc(u.name)}</td><td>${u.bannedUntil>4102444800000?'永久':new Date(u.bannedUntil).toLocaleDateString()}</td><td>${u.bannedUntil>4102444800000?'永久':Math.ceil((u.bannedUntil-Date.now())/86400000)+'天'}</td><td>${esc(u.banReason||'-')}</td><td><button class="mini" onclick="doUnban('${esc(u.name)}')">解封</button></td></tr>`).join('')||'<tr><td colspan=5>暂无封禁</td></tr>'}</table><h3 style="margin-top:16px">举报 <span style="color:var(--pink)">${(DB.reports||[]).filter(r=>r.status==='pending').length}待处理</span></h3>
+    <table><tr><th>作品</th><th>举报人</th><th>原因</th><th>状态</th><th>操作</th></tr>${(DB.reports||[]).map(r=>`<tr><td>${r.type==='user'?`<a href="javascript:void(0)" onclick="showUser('${esc(r.user)}')" style="color:var(--pink)">账号：${esc(r.user)}</a>`:`<a href="javascript:void(0)" onclick="openWork(${r.workId})" style="color:var(--pink)">${esc(r.workTitle)}</a>`}</td><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${r.status}</td><td>${r.status==='pending'?(r.type==='user'?`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="banUser('${esc(r.user)}')">封号</button>`:`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="resolveReport(${r.id},'remove')">下架删除</button>`):''}</td></tr>`).join('')||'<tr><td colspan=5>暂无举报</td></tr>'}</table>`;
 }
 async function setLv(id,lv){const u=DB.users.find(x=>x.id===id);if(!u)return;if(u.isAdmin){u.level=1000;}else{u.level=Math.max(0,Math.min(1000,lv));}await writeSafe('data/users.json',DB.users,u=>u.id,'调等级');renderAdmin(document.getElementById('adminSearch')?.value||'');toast('已调整为LV'+u.level);}
 async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('data/danmaku.json',DB.danmu,'删弹幕');renderAdmin(document.getElementById('adminSearch')?.value||'');}
