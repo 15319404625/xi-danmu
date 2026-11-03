@@ -787,7 +787,7 @@ async function loadDanmu(wid){const layer=document.getElementById('danmuLayer');
     if(!curWork||curWork.id!==wid)return;
     const v=document.querySelector('video');
     const ct=v?v.currentTime:0;
-    DB.danmu.filter(d=>d.workId===wid&&!window._shownDm.has(d.id)&&(d.t||0)<=ct).forEach(d=>{
+    DB.danmu.filter(d=>d.workId===wid&&!window._shownDm.has(d.id)&&(d.t||0)<=ct&&(d.t||0)>=ct-4).forEach(d=>{
       window._shownDm.add(d.id);spawnDanmu(d);
     });
     requestAnimationFrame(check);
