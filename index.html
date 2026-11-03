@@ -687,7 +687,7 @@ async function openWork(id,skipCount){
   DB.viewers=DB.viewers.filter(v=>v.workId!==id||v.user!==(me?me.name:'guest'));
   DB.viewers.push({workId:id,user:me?me.name:'guest',time:Date.now()});
   writeSafe('data/viewers.json',DB.viewers,v=>v.workId+':'+v.user,'在线').catch(()=>{});
-    ghWrite('data/works.json',DB.works,'播放+1').catch(()=>{});
+    writeMerge('data/works.json',DB.works).catch(()=>{});
     if(me){
       DB.history=DB.history.filter(h=>!(h.user===me.name&&h.workId===id));
       DB.history.unshift({user:me.name,workId:id,time:Date.now()});
@@ -1052,7 +1052,7 @@ function renderAdmin(kw){
     <table><tr><th>作品</th><th>举报人</th><th>原因</th><th>状态</th><th>操作</th></tr>${(DB.reports||[]).map(r=>`<tr><td>${r.type==='user'?`<a href="javascript:void(0)" onclick="openReview('${esc(r.user)}')" style="color:var(--pink)">账号：${esc(r.user)}</a>`:`<a href="javascript:void(0)" onclick="openReviewWork(${r.workId})" style="color:var(--pink)">${esc(r.workTitle)}</a>`}</td><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${r.status}</td><td>${r.status==='pending'?(r.type==='user'?`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="banUser('${esc(r.user)}')">封号</button>`:`<button class="mini" onclick="resolveReport(${r.id},'dismiss')">放行</button> <button class="mini danger" onclick="resolveReport(${r.id},'remove')">下架删除</button>`):''}</td></tr>`).join('')||'<tr><td colspan=5>暂无举报</td></tr>'}</table>`;
 }
 async function setLv(id,lv){const u=DB.users.find(x=>x.id===id);if(!u)return;if(u.isAdmin){u.level=1000;}else{u.level=Math.max(0,Math.min(1000,lv));}await writeSafe('data/users.json',DB.users,u=>u.id,'调等级');renderAdmin(document.getElementById('adminSearch')?.value||'');toast('已调整为LV'+u.level);}
-async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await ghWrite('data/danmaku.json',DB.danmu,'删弹幕');renderAdmin(document.getElementById('adminSearch')?.value||'');}
+async function delDm(id){DB.danmu=DB.danmu.filter(d=>d.id!==id);await writeSafe('data/danmaku.json',DB.danmu,d=>d.id,'删弹幕');renderAdmin(document.getElementById('adminSearch')?.value||'');}
 
 function openModal(h){document.getElementById('modalBox').innerHTML=h;document.getElementById('mask').classList.add('show');}
 function closeModal(){document.getElementById('mask').classList.remove('show');}
